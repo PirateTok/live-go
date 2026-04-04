@@ -1,0 +1,912 @@
+// Shared types for TikTok Live protobuf wire format.
+// Field tags match TikTok's wire protocol — names are our own.
+syntax = "proto3";
+
+option go_package = "github.com/PirateTok/live-go/proto";
+
+// Stream control actions (WebcastControlMessage.action)
+enum ControlAction {
+  CONTROL_UNKNOWN = 0;
+  STREAM_PAUSED = 1;
+  STREAM_UNPAUSED = 2;
+  STREAM_ENDED = 3;
+  STREAM_ENDED_BAN = 4;
+}
+
+// Member join/subscribe actions (WebcastMemberMessage.action)
+enum MemberMessageAction {
+  MEMBER_UNKNOWN = 0;
+  JOINED = 1;
+  SUBSCRIBED = 3;
+}
+
+// Audit status for content moderation
+enum AuditStatus {
+  AUDIT_UNKNOWN = 0;
+  AUDIT_PASS = 1;
+  AUDIT_FAILED = 2;
+  AUDIT_REVIEWING = 3;
+  AUDIT_FORBIDDEN = 4;
+}
+
+// Battle state
+enum LinkMicBattleStatus {
+  BATTLE_UNKNOWN = 0;
+  ARMY_ONGOING = 1;
+  ARMY_FINISHED = 2;
+  BATTLE_ONGOING = 4;
+  BATTLE_FINISHED = 5;
+}
+
+// Subscription type
+enum SubscribeType {
+  SUBSCRIBE_ONCE = 0;
+  SUBSCRIBE_AUTO = 1;
+  SUBSCRIBE_DEFAULT = 100;
+}
+
+// Previous subscription status
+enum OldSubscribeStatus {
+  OLD_SUB_FIRST = 0;
+  OLD_SUB_RESUB = 1;
+  OLD_SUB_IN_GRACE = 2;
+  OLD_SUB_NOT_IN_GRACE = 3;
+  OLD_SUB_DEFAULT = 100;
+}
+
+// Active subscription status
+enum SubscribingStatus {
+  SUBSCRIBING_UNKNOWN = 0;
+  SUBSCRIBING_ONCE = 1;
+  SUBSCRIBING_CIRCLE = 2;
+  SUBSCRIBING_CIRCLE_CANCEL = 3;
+  SUBSCRIBING_REFUND = 4;
+  SUBSCRIBING_IN_GRACE = 5;
+  SUBSCRIBING_NOT_IN_GRACE = 6;
+}
+
+// Linkmic permission state (User.link_mic_stats)
+enum LinkmicStatus {
+  LINKMIC_DISABLE = 0;
+  LINKMIC_ENABLE = 1;
+  LINKMIC_FOLLOWING_ONLY = 2;
+  LINKMIC_MULTI = 3;
+  LINKMIC_MULTI_FOLLOWING = 4;
+}
+
+// Envelope gift business type
+enum EnvelopeBusinessType {
+  ENVELOPE_BIZ_UNKNOWN = 0;
+  ENVELOPE_BIZ_USER_DIAMOND = 1;
+  ENVELOPE_BIZ_PLATFORM_DIAMOND = 2;
+  ENVELOPE_BIZ_PLATFORM_SHELL = 3;
+  ENVELOPE_BIZ_PORTAL = 4;
+  ENVELOPE_BIZ_PLATFORM_MERCH = 5;
+  ENVELOPE_BIZ_EOY_DIAMOND = 6;
+  ENVELOPE_BIZ_FAN_CLUB_GTM = 7;
+}
+
+// Envelope follow display
+enum EnvelopeFollowShowStatus {
+  ENVELOPE_FOLLOW_UNKNOWN = 0;
+  ENVELOPE_FOLLOW_SHOW = 1;
+  ENVELOPE_FOLLOW_HIDE = 2;
+}
+
+// Envelope visibility
+enum EnvelopeDisplay {
+  ENVELOPE_DISPLAY_UNKNOWN = 0;
+  ENVELOPE_DISPLAY_NEW = 1;
+  ENVELOPE_DISPLAY_HIDE = 2;
+}
+
+// Generic message sub-type used by poll/linkmic/sub-notify
+enum MessageType {
+  MSG_SUB_SUCCESS = 0;
+  MSG_ANCHOR_REMINDER = 1;
+  MSG_ENTER_ROOM_EXPIRE_SOON = 2;
+  MSG_SUB_GOAL_CREATE = 3;
+  MSG_SUB_GOAL_COMPLETE_AUDIENCE = 4;
+  MSG_SUB_GOAL_COMPLETE_ANCHOR = 5;
+  MSG_SUB_GIFT_USER_NOTICE = 6;
+  MSG_SUB_GIFT_ANCHOR_NOTICE = 7;
+  MSG_SUB_GIFT_RECEIVE_NOTICE = 8;
+  MSG_SUB_GIFT_ROOM_MSG = 9;
+  MSG_SUB_GIFT_ANCHOR_NOTICE_2 = 10;
+  MSG_SUB_GIFT_UPGRADE_NOTICE = 11;
+  MSG_SUB_GIFT_BUY_AUTH_NOTICE = 12;
+}
+
+// Scene for link messages
+enum Scene {
+  SCENE_UNKNOWN = 0;
+  SCENE_CO_HOST = 2;
+  SCENE_MULTI_LIVE = 4;
+}
+
+// Link message type (WebcastLinkMessage.message_type)
+enum LinkMessageType {
+  LINK_UNKNOWN = 0;
+  LINK_CREATE = 1;
+  LINK_CLOSE = 2;
+  LINK_INVITE = 3;
+  LINK_APPLY = 4;
+  LINK_REPLY = 5;
+  LINK_ENTER = 6;
+  LINK_LEAVE = 7;
+  LINK_PERMIT = 8;
+  LINK_CANCEL_INVITE = 9;
+  LINK_WAITING_LIST_CHANGE = 10;
+  LINK_LINKED_LIST_CHANGE = 11;
+  LINK_UPDATE_USER = 12;
+  LINK_KICK_OUT = 13;
+  LINK_CANCEL_APPLY = 14;
+  LINK_MUTE = 15;
+  LINK_MATCH = 16;
+  LINK_UPDATE_USER_SETTING = 17;
+  LINK_MIC_IDX_UPDATE = 18;
+  LINK_LEAVE_V2 = 19;
+  LINK_WAITING_LIST_V2 = 20;
+  LINK_LINKED_LIST_V2 = 21;
+  LINK_COHOST_LIST_CHANGE = 22;
+  LINK_MEDIA_CHANGE = 23;
+  LINK_ACCEPT_NOTICE = 24;
+  LINK_SYS_KICK_OUT = 101;
+  LINK_USER_TOAST = 102;
+}
+
+// Link layer message type (WebcastLinkLayerMessage.message_type)
+enum LinkLayerMessageType {
+  LAYER_UNKNOWN = 0;
+  LAYER_CREATE = 1;
+  LAYER_INVITE = 2;
+  LAYER_APPLY = 3;
+  LAYER_PERMIT = 4;
+  LAYER_REPLY = 5;
+  LAYER_KICK_OUT = 6;
+  LAYER_CANCEL_APPLY = 7;
+  LAYER_CANCEL_INVITE = 8;
+  LAYER_LEAVE = 9;
+  LAYER_FINISH = 10;
+  LAYER_LIST_CHANGE = 11;
+  LAYER_JOIN_DIRECT = 12;
+  LAYER_JOIN_GROUP = 13;
+  LAYER_PERMIT_GROUP = 14;
+  LAYER_CANCEL_GROUP = 15;
+  LAYER_LEAVE_GROUP = 16;
+  LAYER_P2P_GROUP_CHANGE = 17;
+  LAYER_GROUP_CHANGE = 18;
+}
+
+// Emote type
+enum EmoteType {
+  EMOTE_NORMAL = 0;
+  EMOTE_WITH_STICKER = 1;
+}
+
+// Emote content source
+enum ContentSource {
+  SOURCE_UNKNOWN = 0;
+  SOURCE_NORMAL = 1;
+  SOURCE_CAMERA = 2;
+}
+
+// Emote private type
+enum EmotePrivateType {
+  EMOTE_PRIVATE_NORMAL = 0;
+  EMOTE_PRIVATE_SUB_WAVE = 1;
+}
+
+// Kickout reason
+enum KickoutReason {
+  KICK_UNKNOWN = 0;
+  KICK_FIRST_FRAME_TIMEOUT = 1;
+  KICK_BY_HOST = 2;
+  KICK_RTC_LOST = 3;
+  KICK_BY_PUNISH = 4;
+  KICK_BY_ADMIN = 5;
+  KICK_HOST_REMOVE_ALL = 6;
+}
+
+// Reply status for link invitations
+enum ReplyStatus {
+  REPLY_UNKNOWN = 0;
+  REPLY_AGREE = 1;
+  REPLY_REFUSE_PERSONAL = 2;
+  REPLY_REFUSE_TYPE_NOT_SUPPORTED = 3;
+  REPLY_REFUSE_PROCESSING_INVITE = 4;
+  REPLY_REFUSE_TIMEOUT = 5;
+  REPLY_REFUSE_EXCEPTION = 6;
+  REPLY_REFUSE_SYSTEM_NOT_SUPPORTED = 7;
+  REPLY_REFUSE_SUBTYPE_DIFF = 8;
+  REPLY_REFUSE_IN_MICROOM = 9;
+  REPLY_REFUSE_NO_PLUGIN = 10;
+  REPLY_REFUSE_IN_MULTI_GUEST = 11;
+  REPLY_REFUSE_PAUSE = 12;
+  REPLY_REFUSE_CAMERA_DIALOG = 13;
+  REPLY_REFUSE_DRAW_GUESSING = 14;
+  REPLY_REFUSE_RANDOM_MATCHING = 15;
+  REPLY_REFUSE_MATCH_PROCESSING = 16;
+  REPLY_REFUSE_IN_MICROOM_COHOST = 17;
+  REPLY_REFUSE_COHOST_FINISHED = 18;
+  REPLY_REFUSE_NOT_CONNECTED = 19;
+  REPLY_REFUSE_FULL = 20;
+  REPLY_REFUSE_ARC_INCOMPATIBLE = 21;
+  REPLY_REFUSE_OTHER_INVITE = 22;
+  REPLY_REFUSE_OTHER_APPLY = 23;
+  REPLY_REFUSE_IN_ANCHOR_COHOST = 24;
+  REPLY_REFUSE_TOPIC_PAIRING = 25;
+}
+
+// Linkmic applier sort setting
+enum LinkmicApplierSortSetting {
+  SORT_NONE = 0;
+  SORT_BY_GIFT_SCORE = 1;
+}
+
+// Group channel status
+enum GroupStatus {
+  GROUP_UNKNOWN = 0;
+  GROUP_WAITING = 1;
+  GROUP_LINKED = 3;
+}
+
+// Text type for link layer
+enum TextType {
+  DISPLAY_TEXT = 0;
+  CONTENT_TEXT = 1;
+}
+
+// Agree status for group join
+enum AgreeStatus {
+  AGREE_UNKNOWN = 0;
+  AGREED = 1;
+  REJECTED = 2;
+}
+
+// Hashtag namespace
+enum HashtagNamespace {
+  NS_GLOBAL = 0;
+  NS_GAMING = 1;
+}
+
+
+// ---- Shared message types ----
+
+// Common metadata present on every event
+message Common {
+  string method = 1;
+  int64 msg_id = 2;
+  int64 room_id = 3;
+  int64 create_time = 4;
+  int32 monitor = 5;
+  bool is_show_msg = 6;
+  string describe = 7;
+  Text display_text = 8;
+  int64 fold_type = 9;
+  int64 anchor_fold_type = 10;
+  int64 priority_score = 11;
+  string log_id = 12;
+  string msg_process_filter_k = 13;
+  string msg_process_filter_v = 14;
+  string from_idc = 15;
+  string to_idc = 16;
+  repeated string filter_msg_tags_list = 17;
+}
+
+// Rich text with formatting
+message Text {
+  string key = 1;
+  string default_pattern = 2;
+  TextFormat default_format = 3;
+  repeated TextPiece pieces_list = 4;
+
+  message TextPiece {
+    int32 type = 1;
+    TextFormat format = 2;
+    string string_value = 11;
+    oneof text_piece_type {
+      TextPieceUser user_value = 21;
+      TextPieceGift gift_value = 22;
+    }
+    TextPiecePatternRef pattern_ref_value = 24;
+  }
+
+  message TextFormat {
+    string color = 1;
+    bool bold = 2;
+    bool italic = 3;
+    int32 weight = 4;
+    int32 italic_angle = 5;
+    int32 font_size = 6;
+    bool use_highlight_color = 7;
+    bool use_remote_color = 8;
+  }
+
+  message TextPieceGift {
+    int32 gift_id = 1;
+    int64 color_id = 4;
+  }
+
+  message TextPiecePatternRef {
+    string key = 1;
+    string default_pattern = 2;
+  }
+
+  message TextPieceUser {
+    User user = 1;
+    bool with_colon = 2;
+  }
+}
+
+// Image with URL list
+message Image {
+  repeated string url_list = 1;
+  string extras = 2;
+  bool is_animated = 9;
+}
+
+// Badge display on user profiles / chat
+message BadgeStruct {
+  int32 display_type = 1;
+  ImageBadge image = 20;
+  TextBadge text = 21;
+  StringBadge str = 22;
+
+  message ImageBadge {
+    Image image = 2;
+  }
+  message TextBadge {
+    string default_pattern = 3;
+  }
+  message StringBadge {
+    string str = 2;
+  }
+}
+
+// Gift metadata
+message GiftStruct {
+  Image image = 1;
+  string describe = 2;
+  int64 duration = 4;
+  int64 id = 5;
+  bool for_linkmic = 7;
+  bool combo = 10;
+  int32 type = 11;
+  int32 diamond_count = 12;
+  bool is_displayed_on_panel = 13;
+  Image gift_label_icon = 15;
+  string name = 16;
+  Image icon = 21;
+  Image preview_image = 47;
+  bool is_broadcast_gift = 49;
+  bool is_random_gift = 51;
+  bool is_box_gift = 52;
+  bool can_put_in_gift_box = 53;
+}
+
+// TikTok user identity and profile data.
+// Tags follow TikTok's wire format per enriched User spec.
+message User {
+  int64 id = 1;
+  string nickname = 3;
+  string bio_description = 5;
+  Image avatar_thumb = 9;
+  Image avatar_medium = 10;
+  Image avatar_large = 11;
+  bool verified = 12;
+  int32 status = 15;
+  int64 create_time = 16;
+  int64 modify_time = 17;
+  repeated Image badge_image_list = 21;
+  FollowInfo follow_info = 22;
+  PayGrade pay_grade = 23;
+  FansClub fans_club = 24;
+  Border border = 25;
+  Image avatar_border = 27;
+  int64 top_vip_no = 31;
+  UserAttr user_attr = 32;
+  int64 pay_score = 34;
+  int64 ticket_count = 35;
+  LinkmicStatus link_mic_stats = 37;
+  string display_id = 38;
+  string sec_uid = 46;
+  int32 user_role = 47;
+  SubscribeInfo subscribe_info = 63;
+  repeated BadgeStruct badge_list = 64;
+
+  // High-tag fields (1000+ range)
+  bool allow_use_linkmic = 1010;
+  int64 fan_ticket_count = 1022;
+  int64 follow_status = 1024;
+  string id_str = 1028;
+  bool is_follower = 1029;
+  bool is_following = 1030;
+  bool is_block = 1048;
+
+  message FollowInfo {
+    int64 following_count = 1;
+    int64 follower_count = 2;
+    int64 follow_status = 3;
+    int64 push_status = 4;
+  }
+
+  message FansClub {
+    FansClubData data = 1;
+    message FansClubData {
+      string club_name = 1;
+      int32 level = 2;
+      int64 anchor_id = 6;
+    }
+  }
+
+  message PayGrade {
+    Image diamond_icon = 2;
+    string name = 3;
+    Image icon = 4;
+    int64 level = 6;
+    int64 score = 25;
+  }
+
+  message Border {
+    Image icon = 1;
+    int64 level = 2;
+    string source = 3;
+  }
+
+  message UserAttr {
+    bool is_muted = 1;
+    bool is_admin = 2;
+    bool is_super_admin = 3;
+    int64 mute_duration = 4;
+  }
+
+  message SubscribeInfo {
+    bool qualification = 1;
+    bool is_subscribe = 2;
+    bool enable_subscription = 4;
+    int64 subscriber_count = 5;
+    bool is_in_grace_period = 6;
+    bool is_subscribed_to_anchor = 7;
+  }
+
+  message OwnRoom {
+    repeated int64 room_ids_list = 1;
+  }
+}
+
+// Emote sticker
+message Emote {
+  string emote_id = 1;
+  Image image = 2;
+  AuditStatus audit_status = 3;
+  string uuid = 4;
+  EmoteType emote_type = 5;
+  ContentSource content_source = 6;
+  EmotePrivateType emote_private_type = 7;
+}
+
+// Punishment event info (used by ControlMessage)
+message PunishEventInfo {
+  string punish_type = 1;
+  string punish_reason = 2;
+  string punish_id = 3;
+  int64 violation_uid = 4;
+  int32 punish_type_id = 5;
+  int64 duration = 6;
+}
+
+// Chat filter flags
+message MsgFilter {
+  bool is_gifter = 1;
+  bool is_subscribed_to_anchor = 2;
+}
+
+// User identity flags relative to anchor
+message UserIdentity {
+  bool is_gift_giver_of_anchor = 1;
+  bool is_subscriber_of_anchor = 2;
+  bool is_mutual_following_with_anchor = 3;
+  bool is_follower_of_anchor = 4;
+  bool is_moderator_of_anchor = 5;
+  bool is_anchor = 6;
+}
+
+// Goal indicator
+message Indicator {
+  string key = 1;
+  int64 op = 2;
+}
+
+// Donation goal
+message Goal {
+  int64 id = 1;
+  string description = 5;
+  int32 audit_status = 6;
+  int64 start_time = 8;
+  int64 expire_time = 9;
+  int64 real_finish_time = 10;
+  repeated GoalContributor contributors_list = 11;
+  int32 contributors_length = 12;
+  string id_str = 13;
+  GoalStats stats = 15;
+
+  message GoalStats {
+    int64 total_coins = 1;
+    int64 total_contributor = 2;
+  }
+  message GoalContributor {
+    int64 user_id = 1;
+    Image avatar = 2;
+    string display_id = 3;
+    int64 score = 4;
+  }
+}
+
+// Ranking data (hourly rank)
+message Ranking {
+  string type = 1;
+  string label = 2;
+  RankColor color = 3;
+  repeated ValueLabel details = 4;
+}
+
+message RankColor {
+  string color = 1;
+  uint64 id = 4;
+}
+
+message ValueLabel {
+  uint32 data = 1;
+  string label = 2;
+  string label2 = 3;
+  string label3 = 11;
+}
+
+// Timestamp container (used by shopping messages)
+message TimeStampContainer {
+  uint64 timestamp1 = 1;
+  uint64 timestamp2 = 2;
+  uint64 timestamp3 = 3;
+}
+
+// Battle army group
+message LinkMicArmiesItems {
+  uint64 host_user_id = 1;
+  repeated ArmiesGroup battle_groups = 2;
+
+  message ArmiesGroup {
+    repeated User users = 1;
+    uint32 points = 2;
+  }
+}
+
+// Poll option info (shared across poll start/end/update)
+message PollOptionInfo {
+  int32 votes = 1;
+  string display_content = 2;
+  int32 option_idx = 3;
+  repeated VoteUser vote_user_list = 4;
+}
+
+message VoteUser {
+  int64 user_id = 1;
+  string nick_name = 2;
+  Image avatar_thumb = 3;
+}
+
+message PollStartContent {
+  int64 start_time = 1;
+  int64 end_time = 2;
+  repeated PollOptionInfo option_list = 3;
+  string title = 4;
+  User operator = 5;
+}
+
+message PollEndContent {
+  int32 end_type = 1;
+  repeated PollOptionInfo option_list = 2;
+  User operator = 3;
+}
+
+message PollUpdateVotesContent {
+  repeated PollOptionInfo option_list = 2;
+}
+
+// Fan ticket
+message UserFanTicket {
+  int64 user_id = 1;
+  int64 fan_ticket = 2;
+  int64 match_total_score = 3;
+  int32 match_rank = 4;
+}
+
+message FanTicketRoomNoticeContent {
+  repeated UserFanTicket user_fan_ticket_list = 1;
+  int64 total_link_mic_fan_ticket = 2;
+  int64 match_id = 3;
+  int64 event_time = 4;
+  string fan_ticket_icon_url = 5;
+}
+
+
+// ---- Linker content types (WebcastLinkMessage) ----
+
+message ListUser {
+  User user = 1;
+  int64 linkmic_id = 2;
+  string linkmic_id_str = 3;
+  int64 link_status = 4;
+  int32 user_position = 6;
+  int32 silence_status = 7;
+  int64 modify_time = 8;
+  int64 linker_id = 9;
+}
+
+message LinkerInviteContent {
+  int64 from_user_id = 1;
+  int64 from_room_id = 2;
+  User from_user = 8;
+}
+
+message LinkerReplyContent {
+  int64 from_user_id = 1;
+  int64 from_room_id = 2;
+  int64 to_user_id = 4;
+  int64 link_type = 6;
+  int64 reply_status = 7;
+  User from_user = 9;
+  User to_user = 10;
+}
+
+message LinkerCreateContent {
+  int64 owner_id = 1;
+  int64 owner_room_id = 2;
+  int64 link_type = 3;
+}
+
+message LinkerCloseContent {}
+
+message LinkerEnterContent {
+  repeated ListUser linked_users_list = 1;
+}
+
+message LinkerLeaveContent {
+  int64 user_id = 1;
+  string linkmic_id_str = 2;
+}
+
+message LinkerCancelContent {
+  int64 from_user_id = 1;
+  int64 to_user_id = 2;
+}
+
+message LinkerKickOutContent {
+  int64 from_user_id = 1;
+  KickoutReason kickout_reason = 2;
+}
+
+message LinkerLinkedListChangeContent {}
+message CohostListChangeContent {}
+
+message LinkerListChangeContent {
+  repeated ListUser linked_users = 1;
+  repeated ListUser applied_users = 2;
+  repeated ListUser connecting_users = 3;
+}
+
+message LinkerMediaChangeContent {
+  int64 op = 1;
+  int64 to_user_id = 2;
+  int64 anchor_id = 3;
+  int64 room_id = 4;
+}
+
+message LinkerMicIdxUpdateContent {}
+
+message LinkerMuteContent {
+  int64 user_id = 1;
+  int64 status = 2;
+}
+
+message LinkerRandomMatchContent {
+  User user = 1;
+  int64 room_id = 2;
+}
+
+message LinkerUpdateUserContent {
+  int64 from_user_id = 1;
+  int64 to_user_id = 2;
+}
+
+message LinkerUpdateUserSettingContent {}
+message LinkerWaitingListChangeContent {}
+
+message LinkerAcceptNoticeContent {
+  int64 from_user_id = 1;
+  int64 from_room_id = 2;
+  int64 to_user_id = 3;
+}
+
+message LinkerSysKickOutContent {
+  int64 user_id = 1;
+  string linkmic_id_str = 2;
+}
+
+message LinkmicUserToastContent {
+  int64 user_id = 1;
+  int64 room_id = 2;
+  Text display_text = 3;
+}
+
+message LinkerSetting {
+  int64 max_member_limit = 1;
+  int64 link_type = 2;
+  int64 scene = 3;
+  int64 owner_user_id = 4;
+  int64 owner_room_id = 5;
+}
+
+message LinkmicUserSettingInfo {
+  int64 user_id = 1;
+  int64 layout = 2;
+  int64 fix_mic_num = 3;
+  LinkmicApplierSortSetting applier_sort_setting = 7;
+}
+
+
+// ---- Link layer content types (WebcastLinkLayerMessage) ----
+
+message Player {
+  int64 room_id = 1;
+  int64 user_id = 2;
+}
+
+message LinkPosition {
+  int32 position = 1;
+  int32 opt = 2;
+}
+
+message Position {
+  int32 type = 1;
+  LinkPosition link = 2;
+}
+
+message LinkLayerListUser {
+  User user = 1;
+  int64 linkmic_id = 2;
+  Position pos = 3;
+  int64 linked_time_nano = 4;
+}
+
+message AllListUser {
+  repeated LinkLayerListUser linked_list = 2;
+  repeated LinkLayerListUser applied_list = 3;
+  repeated LinkLayerListUser invited_list = 4;
+  repeated LinkLayerListUser ready_list = 5;
+}
+
+message CreateChannelContent {
+  Player owner = 1;
+  string owner_link_mic_id = 2;
+}
+
+message ListChangeContent {
+  TextType type = 1;
+  AllListUser list = 2;
+}
+
+message InviteContent {
+  Player invitor = 1;
+  string invitor_link_mic_id = 3;
+  string invitee_link_mic_id = 4;
+  bool is_owner = 5;
+  Position pos = 6;
+  User invitee = 8;
+  User operator = 9;
+}
+
+message ApplyContent {
+  Player applier = 1;
+  string applier_link_mic_id = 2;
+}
+
+message PermitApplyContent {
+  Player permiter = 1;
+  string permiter_link_mic_id = 2;
+  Position applier_pos = 3;
+  ReplyStatus reply_status = 4;
+  User applier = 6;
+  User operator = 7;
+  string applier_link_mic_id = 8;
+}
+
+message ReplyInviteContent {
+  Player invitee = 1;
+  ReplyStatus reply_status = 2;
+  string invitee_link_mic_id = 3;
+  Position invitee_pos = 4;
+  Player invite_operator_user = 5;
+}
+
+message KickOutContent {
+  Player offliner = 1;
+  KickoutReason kickout_reason = 2;
+}
+
+message CancelApplyContent {
+  Player applier = 1;
+  string applier_link_mic_id = 2;
+}
+
+message CancelInviteContent {
+  Player invitor = 1;
+  string invitor_link_mic_id = 2;
+  string invitee_link_mic_id = 3;
+  int64 invite_seq_id = 4;
+  Player invitee = 5;
+}
+
+message LeaveContent {
+  Player leaver = 1;
+  int64 leave_reason = 2;
+}
+
+message FinishChannelContent {
+  Player owner = 1;
+  int64 finish_reason = 2;
+}
+
+message JoinDirectContent {
+  LinkLayerListUser joiner = 1;
+  AllListUser all_users = 2;
+}
+
+message GroupPlayer {
+  int64 channel_id = 1;
+  User user = 2;
+}
+
+message GroupChannelAllUser {
+  int64 group_channel_id = 1;
+  repeated GroupChannelUser user_list = 2;
+}
+
+message GroupChannelUser {
+  int64 channel_id = 1;
+  GroupStatus status = 2;
+  TextType type = 3;
+  AllListUser all_user = 4;
+}
+
+message JoinGroupContent {
+  GroupChannelAllUser group_user = 1;
+  GroupPlayer join_user = 2;
+  TextType type = 3;
+}
+
+message LeaveJoinGroupContent {
+  GroupPlayer operator = 1;
+  int64 group_channel_id = 2;
+}
+
+message PermitJoinGroupContent {
+  GroupPlayer approver = 1;
+  AgreeStatus agree_status = 2;
+  TextType type = 3;
+  GroupChannelAllUser group_user = 5;
+}
+
+message CancelJoinGroupContent {
+  repeated GroupPlayer leaver_list = 1;
+  GroupPlayer operator = 2;
+  TextType type = 3;
+}
+
+message P2PGroupChangeContent {
+  GroupChannelAllUser group_user = 2;
+}
+
+message BusinessContent {
+  int64 over_length = 1;
+}
