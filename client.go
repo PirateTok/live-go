@@ -139,7 +139,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 				ua = tthttp.RandomUA()
 			}
 
-			ttwid, err := auth.FetchTTWID(c.timeout, ua)
+			ttwid, err := auth.FetchTTWID(c.timeout, ua, "")
 			if err != nil {
 				log.Printf("ttwid fetch failed: %v", err)
 				break

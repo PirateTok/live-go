@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -12,9 +13,19 @@ import (
 // FetchTTWID performs an unauthenticated GET to tiktok.com and extracts
 // the ttwid cookie from the Set-Cookie response header.
 // The userAgent parameter overrides the default random UA when non-empty.
-func FetchTTWID(timeout time.Duration, userAgent string) (string, error) {
+// The proxy parameter sets an HTTP/HTTPS proxy when non-empty.
+func FetchTTWID(timeout time.Duration, userAgent string, proxy string) (string, error) {
+	transport := &http.Transport{}
+	if proxy != "" {
+		proxyURL, err := url.Parse(proxy)
+		if err != nil {
+			return "", fmt.Errorf("ttwid: invalid proxy URL: %w", err)
+		}
+		transport.Proxy = http.ProxyURL(proxyURL)
+	}
 	client := &http.Client{
-		Timeout: timeout,
+		Timeout:   timeout,
+		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},

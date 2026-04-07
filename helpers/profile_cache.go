@@ -27,6 +27,7 @@ type ProfileCache struct {
 	entries   map[string]*cacheEntry
 	ttwid     string
 	ttl       time.Duration
+	proxy     string
 	userAgent string
 	cookies   string
 }
@@ -42,6 +43,12 @@ func NewProfileCache() *ProfileCache {
 // WithTTL sets the cache TTL.
 func (c *ProfileCache) WithTTL(ttl time.Duration) *ProfileCache {
 	c.ttl = ttl
+	return c
+}
+
+// WithProxy sets a proxy URL for all HTTP requests.
+func (c *ProfileCache) WithProxy(proxy string) *ProfileCache {
+	c.proxy = proxy
 	return c
 }
 
@@ -76,7 +83,7 @@ func (c *ProfileCache) Fetch(username string) (*tthttp.SigiProfile, error) {
 		return nil, err
 	}
 
-	profile, scrapeErr := tthttp.ScrapeProfile(key, ttwid, scrapeTimeout, c.userAgent, c.cookies)
+	profile, scrapeErr := tthttp.ScrapeProfile(key, ttwid, scrapeTimeout, c.userAgent, c.cookies, c.proxy)
 
 	c.mu.Lock()
 	if scrapeErr != nil {
@@ -127,7 +134,7 @@ func (c *ProfileCache) ensureTTWID() (string, error) {
 	}
 	c.mu.Unlock()
 
-	ttwid, err := auth.FetchTTWID(ttwidTimeout, c.userAgent)
+	ttwid, err := auth.FetchTTWID(ttwidTimeout, c.userAgent, c.proxy)
 	if err != nil {
 		return "", err
 	}

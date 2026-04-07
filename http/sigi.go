@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -34,7 +35,7 @@ type SigiProfile struct {
 
 // ScrapeProfile fetches a TikTok profile page and extracts profile data
 // from the embedded SIGI JSON blob. Stateless — no caching.
-func ScrapeProfile(username string, ttwid string, timeout time.Duration, userAgent string, cookies string) (*SigiProfile, error) {
+func ScrapeProfile(username string, ttwid string, timeout time.Duration, userAgent string, cookies string, proxy string) (*SigiProfile, error) {
 	clean := strings.ToLower(strings.TrimLeft(strings.TrimSpace(username), "@"))
 	ua := userAgent
 	if ua == "" {
@@ -42,7 +43,15 @@ func ScrapeProfile(username string, ttwid string, timeout time.Duration, userAge
 	}
 	cookieHeader := buildCookieHeader(ttwid, cookies)
 
-	client := &http.Client{Timeout: timeout}
+	transport := &http.Transport{}
+	if proxy != "" {
+		proxyURL, err := url.Parse(proxy)
+		if err != nil {
+			return nil, fmt.Errorf("scrape profile: invalid proxy URL: %w", err)
+		}
+		transport.Proxy = http.ProxyURL(proxyURL)
+	}
+	client := &http.Client{Timeout: timeout, Transport: transport}
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://www.tiktok.com/@%s", clean), nil)
 	if err != nil {
 		return nil, fmt.Errorf("scrape profile: build request: %w", err)
