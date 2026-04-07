@@ -25,6 +25,8 @@ type Client struct {
 	staleTimeout time.Duration
 	userAgent    string
 	cookies      string
+	language     string
+	region       string
 }
 
 // NewClient creates a new TikTok Live client for the given username.
@@ -89,6 +91,18 @@ func (c *Client) Cookies(cookies string) *Client {
 	return c
 }
 
+// Language overrides the detected system language (e.g. "pt", "ro").
+func (c *Client) Language(lang string) *Client {
+	c.language = lang
+	return c
+}
+
+// Region overrides the detected system region (e.g. "BR", "RO").
+func (c *Client) Region(reg string) *Client {
+	c.region = reg
+	return c
+}
+
 // Connect resolves the room, then enters a reconnect loop.
 // Events are sent to the returned channel. The channel is closed when done.
 func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
@@ -98,6 +112,14 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 	}
 
 	tz := tthttp.SystemTimezone()
+	lang := c.language
+	if lang == "" {
+		lang = tthttp.SystemLanguage()
+	}
+	reg := c.region
+	if reg == "" {
+		reg = tthttp.SystemRegion()
+	}
 	eventCh := make(chan events.Event, 256)
 	eventCh <- events.Event{Type: events.EventConnected, RoomID: room.RoomID}
 
@@ -127,7 +149,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 				cookieHeader = fmt.Sprintf("ttwid=%s; %s", ttwid, c.cookies)
 			}
 
-			wssURL := connection.BuildWSSURL(c.cdnHost, room.RoomID, tz)
+			wssURL := connection.BuildWSSURL(c.cdnHost, room.RoomID, tz, lang, reg)
 			wsErr := connection.RunWebSocket(ctx, wssURL, cookieHeader, ua, room.RoomID, c.staleTimeout, eventCh)
 
 			var isDeviceBlocked bool

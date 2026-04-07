@@ -75,3 +75,50 @@ func tzFromLocaltimeLink() string {
 	}
 	return ""
 }
+
+// SystemLocale returns (language, region) detected from the system.
+// Tries LC_ALL, then LANG env var. Falls back to ("en", "US").
+func SystemLocale() (string, string) {
+	for _, v := range []string{"LC_ALL", "LANG"} {
+		val := strings.TrimSpace(os.Getenv(v))
+		if val == "" || val == "C" || val == "POSIX" {
+			continue
+		}
+		lang, region := parsePosixLocale(val)
+		if lang != "" {
+			return lang, region
+		}
+	}
+	return "en", "US"
+}
+
+// SystemLanguage returns the detected language code (e.g. "en", "ro").
+func SystemLanguage() string {
+	lang, _ := SystemLocale()
+	return lang
+}
+
+// SystemRegion returns the detected region code (e.g. "US", "RO").
+func SystemRegion() string {
+	_, region := SystemLocale()
+	return region
+}
+
+func parsePosixLocale(s string) (string, string) {
+	// Strip encoding: "en_US.UTF-8" -> "en_US"
+	if idx := strings.IndexByte(s, '.'); idx >= 0 {
+		s = s[:idx]
+	}
+	// Split on _ or -
+	s = strings.ReplaceAll(s, "-", "_")
+	parts := strings.SplitN(s, "_", 2)
+	lang := strings.ToLower(parts[0])
+	if len(lang) < 2 {
+		return "", ""
+	}
+	region := "US"
+	if len(parts) > 1 {
+		region = strings.ToUpper(parts[1])
+	}
+	return lang, region
+}

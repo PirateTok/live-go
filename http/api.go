@@ -43,6 +43,17 @@ func (e *HostNotOnlineError) Error() string { return fmt.Sprintf("user %q is not
 func (e *TikTokBlockedError) Error() string { return fmt.Sprintf("tiktok blocked (HTTP %d)", e.StatusCode) }
 func (e *TikTokAPIError) Error() string     { return fmt.Sprintf("tiktok API error: statusCode=%d", e.Code) }
 
+// Profile errors
+type ProfilePrivateError struct{ Username string }
+type ProfileNotFoundError struct{ Username string }
+type ProfileScrapeError struct{ Reason string }
+type ProfileError struct{ Code int64 }
+
+func (e *ProfilePrivateError) Error() string  { return fmt.Sprintf("profile is private: @%s", e.Username) }
+func (e *ProfileNotFoundError) Error() string { return fmt.Sprintf("profile not found: @%s", e.Username) }
+func (e *ProfileScrapeError) Error() string   { return fmt.Sprintf("failed to scrape profile: %s", e.Reason) }
+func (e *ProfileError) Error() string         { return fmt.Sprintf("profile fetch error: statusCode=%d", e.Code) }
+
 // AgeRestrictedError is returned when room info fails on 18+ rooms without cookies.
 type AgeRestrictedError struct{}
 
