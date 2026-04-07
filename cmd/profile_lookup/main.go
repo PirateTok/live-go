@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	tthttp "github.com/PirateTok/live-go/http"
+	"github.com/PirateTok/live-go/helpers"
 )
 
 func main() {
@@ -13,7 +13,7 @@ func main() {
 		username = os.Args[1]
 	}
 
-	cache := tthttp.NewProfileCache()
+	cache := helpers.NewProfileCache()
 
 	fmt.Printf("Fetching profile for @%s...\n", username)
 	p, err := cache.Fetch(username)
