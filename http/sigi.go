@@ -47,9 +47,10 @@ func ScrapeProfile(username string, ttwid string, timeout time.Duration, userAge
 	if err != nil {
 		return nil, fmt.Errorf("scrape profile: build request: %w", err)
 	}
+	sLang, sReg := SystemLocale()
 	req.Header.Set("User-Agent", ua)
 	req.Header.Set("Cookie", cookieHeader)
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Accept-Language", fmt.Sprintf("%s-%s,%s;q=0.9", sLang, sReg, sLang))
 
 	resp, err := client.Do(req)
 	if err != nil {

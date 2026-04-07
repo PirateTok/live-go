@@ -17,7 +17,7 @@ func main() {
 	timeout := 10 * time.Second
 
 	for _, username := range os.Args[1:] {
-		result, err := tthttp.CheckOnline(username, timeout)
+		result, err := tthttp.CheckOnline(username, timeout, "", "")
 		if err != nil {
 			switch err.(type) {
 			case *tthttp.UserNotFoundError:

@@ -62,12 +62,16 @@ func (e *AgeRestrictedError) Error() string {
 }
 
 // CheckOnline resolves a TikTok username to a room ID via the JSON API.
-func CheckOnline(username string, timeout time.Duration) (*RoomIDResult, error) {
+// Pass empty language/region to auto-detect from system locale.
+func CheckOnline(username string, timeout time.Duration, language string, region string) (*RoomIDResult, error) {
 	client := &http.Client{Timeout: timeout}
+	lang, reg := resolveLocale(language, region)
+	browserLang := lang + "-" + reg
 	url := fmt.Sprintf(
 		"https://www.tiktok.com/api-live/user/room?aid=1988&app_name=tiktok_web"+
-			"&device_platform=web_pc&app_language=en&browser_language=en-US"+
-			"&user_is_login=false&sourceType=54&staleTime=600000&uniqueId=%s", username)
+			"&device_platform=web_pc&app_language=%s&browser_language=%s&region=%s"+
+			"&user_is_login=false&sourceType=54&staleTime=600000&uniqueId=%s",
+		lang, browserLang, reg, username)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -125,15 +129,19 @@ func CheckOnline(username string, timeout time.Duration) (*RoomIDResult, error) 
 }
 
 // FetchRoomInfo fetches optional room metadata. Cookies needed for 18+ rooms.
-func FetchRoomInfo(roomID string, timeout time.Duration, cookies string) (*RoomInfo, error) {
+// Pass empty language/region to auto-detect from system locale.
+func FetchRoomInfo(roomID string, timeout time.Duration, cookies string, language string, region string) (*RoomInfo, error) {
 	client := &http.Client{Timeout: timeout}
 	tz := strings.ReplaceAll(SystemTimezone(), "/", "%2F")
+	lang, reg := resolveLocale(language, region)
+	browserLang := lang + "-" + reg
 	url := fmt.Sprintf(
 		"https://webcast.tiktok.com/webcast/room/info/?aid=1988&app_name=tiktok_web"+
-			"&device_platform=web_pc&app_language=en&browser_language=en-US"+
+			"&device_platform=web_pc&app_language=%s&browser_language=%s"+
 			"&browser_name=Mozilla&browser_online=true&browser_platform=Linux+x86_64"+
 			"&cookie_enabled=true&screen_height=1080&screen_width=1920"+
-			"&tz_name=%s&webcast_language=en&room_id=%s", tz, roomID)
+			"&tz_name=%s&webcast_language=%s&room_id=%s",
+		lang, browserLang, tz, lang, roomID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -211,4 +219,19 @@ func parseStreamURLs(data json.RawMessage) *StreamURLs {
 		FlvLD:     raw.FlvPullURL["SD2"],
 		FlvAudio:  raw.FlvPullURL["AUDIO"],
 	}
+}
+
+func resolveLocale(language string, region string) (string, string) {
+	lang := language
+	reg := region
+	if lang == "" || reg == "" {
+		sysLang, sysReg := SystemLocale()
+		if lang == "" {
+			lang = sysLang
+		}
+		if reg == "" {
+			reg = sysReg
+		}
+	}
+	return lang, reg
 }

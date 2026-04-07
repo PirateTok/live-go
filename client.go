@@ -106,12 +106,6 @@ func (c *Client) Region(reg string) *Client {
 // Connect resolves the room, then enters a reconnect loop.
 // Events are sent to the returned channel. The channel is closed when done.
 func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
-	room, err := tthttp.CheckOnline(c.username, c.timeout)
-	if err != nil {
-		return nil, err
-	}
-
-	tz := tthttp.SystemTimezone()
 	lang := c.language
 	if lang == "" {
 		lang = tthttp.SystemLanguage()
@@ -120,6 +114,14 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 	if reg == "" {
 		reg = tthttp.SystemRegion()
 	}
+	acceptLang := fmt.Sprintf("%s-%s,%s;q=0.9", lang, reg, lang)
+
+	room, err := tthttp.CheckOnline(c.username, c.timeout, lang, reg)
+	if err != nil {
+		return nil, err
+	}
+
+	tz := tthttp.SystemTimezone()
 	eventCh := make(chan events.Event, 256)
 	eventCh <- events.Event{Type: events.EventConnected, RoomID: room.RoomID}
 
@@ -150,7 +152,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 			}
 
 			wssURL := connection.BuildWSSURL(c.cdnHost, room.RoomID, tz, lang, reg)
-			wsErr := connection.RunWebSocket(ctx, wssURL, cookieHeader, ua, room.RoomID, c.staleTimeout, eventCh)
+			wsErr := connection.RunWebSocket(ctx, wssURL, cookieHeader, ua, room.RoomID, c.staleTimeout, acceptLang, eventCh)
 
 			var isDeviceBlocked bool
 			if wsErr != nil {
@@ -209,11 +211,13 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 }
 
 // CheckOnline checks if a user is currently live without connecting.
+// Language and region auto-detected from system locale.
 func CheckOnline(username string, timeout time.Duration) (*tthttp.RoomIDResult, error) {
-	return tthttp.CheckOnline(username, timeout)
+	return tthttp.CheckOnline(username, timeout, "", "")
 }
 
 // FetchRoomInfo fetches optional room metadata. Pass cookies for 18+ rooms.
+// Language and region auto-detected from system locale.
 func FetchRoomInfo(roomID string, timeout time.Duration, cookies string) (*tthttp.RoomInfo, error) {
-	return tthttp.FetchRoomInfo(roomID, timeout, cookies)
+	return tthttp.FetchRoomInfo(roomID, timeout, cookies, "", "")
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
 	"github.com/PirateTok/live-go/events"
+	tthttp "github.com/PirateTok/live-go/http"
 	pb "github.com/PirateTok/live-go/proto"
 	"google.golang.org/protobuf/proto"
 )
@@ -34,13 +35,18 @@ func (e *DeviceBlockedError) Error() string {
 // RunWebSocket connects to the TikTok Live WSS endpoint and streams events.
 // The userAgent parameter sets the User-Agent header for the WSS handshake.
 // The cookieHeader is the full Cookie header value (e.g. "ttwid=xxx; sessionid=yyy").
-func RunWebSocket(ctx context.Context, wssURL string, cookieHeader string, userAgent string, roomID string, staleTimeout time.Duration, eventCh chan<- events.Event) error {
+// Pass acceptLanguage for locale-aware header (e.g. "ro-RO,ro;q=0.9"). Empty = auto-detect.
+func RunWebSocket(ctx context.Context, wssURL string, cookieHeader string, userAgent string, roomID string, staleTimeout time.Duration, acceptLanguage string, eventCh chan<- events.Event) error {
+	if acceptLanguage == "" {
+		lang, reg := tthttp.SystemLocale()
+		acceptLanguage = fmt.Sprintf("%s-%s,%s;q=0.9", lang, reg, lang)
+	}
 	header := http.Header{
 		"User-Agent":      {userAgent},
 		"Cookie":          {cookieHeader},
 		"Origin":          {"https://www.tiktok.com"},
 		"Referer":         {"https://www.tiktok.com/"},
-		"Accept-Language": {"en-US,en;q=0.9"},
+		"Accept-Language": {acceptLanguage},
 		"Accept-Encoding": {"gzip, deflate"},
 		"Cache-Control":   {"no-cache"},
 	}
