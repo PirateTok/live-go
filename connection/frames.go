@@ -62,7 +62,8 @@ func buildAck(logID uint64, internalExt []byte) ([]byte, error) {
 	return proto.Marshal(frame)
 }
 
-func decompressIfGzipped(data []byte) ([]byte, error) {
+// DecompressIfGzipped checks for gzip magic bytes and decompresses if present.
+func DecompressIfGzipped(data []byte) ([]byte, error) {
 	if len(data) < 2 || data[0] != 0x1f || data[1] != 0x8b {
 		return data, nil
 	}

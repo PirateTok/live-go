@@ -103,6 +103,17 @@ go run ./cmd/stream_info <username>      # fetch room metadata + stream URLs
 go run ./cmd/gift_tracker <username>     # track gifts with diamond totals
 ```
 
+## Replay testing
+
+Deterministic cross-lib validation against binary WSS captures. Requires testdata from a separate repo:
+
+```bash
+git clone https://github.com/PirateTok/live-testdata ../live-testdata
+go test -run TestReplay -v
+```
+
+Tests skip gracefully if testdata is not found. You can also set `PIRATETOK_TESTDATA` to point to a custom location.
+
 ## Known gaps
 
 - WSS proxy transport support is not implemented yet.

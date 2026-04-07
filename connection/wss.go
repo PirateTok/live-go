@@ -164,7 +164,7 @@ func processFrame(data []byte, conn net.Conn, eventCh chan<- events.Event) error
 
 	switch frame.PayloadType {
 	case "msg":
-		decompressed, err := decompressIfGzipped(frame.Payload)
+		decompressed, err := DecompressIfGzipped(frame.Payload)
 		if err != nil {
 			return err
 		}
