@@ -23,7 +23,7 @@ func TestCheckOnline_LiveUser(t *testing.T) {
 		t.Skip("set PIRATETOK_LIVE_TEST_USER to a currently-live TikTok username to run this test")
 	}
 
-	result, err := tthttp.CheckOnline(user, httpTimeout, "", "")
+	result, err := tthttp.CheckOnline(user, httpTimeout, "", "", "")
 	if err != nil {
 		t.Fatalf("CheckOnline(%q) returned error: %v", user, err)
 	}
@@ -46,7 +46,7 @@ func TestCheckOnline_OfflineUser(t *testing.T) {
 		t.Skip("set PIRATETOK_LIVE_TEST_OFFLINE_USER to a known-offline TikTok username to run this test")
 	}
 
-	_, err := tthttp.CheckOnline(user, httpTimeout, "", "")
+	_, err := tthttp.CheckOnline(user, httpTimeout, "", "", "")
 	if err == nil {
 		t.Fatalf("CheckOnline(%q) expected HostNotOnlineError but got nil error (user appears live)", user)
 	}
@@ -66,7 +66,7 @@ func TestCheckOnline_NonexistentUser(t *testing.T) {
 		t.Skip("set PIRATETOK_LIVE_TEST_HTTP=1 to enable the not-found probe (calls TikTok API with a synthetic username)")
 	}
 
-	_, err := tthttp.CheckOnline(syntheticNonexistentUser, httpTimeout, "", "")
+	_, err := tthttp.CheckOnline(syntheticNonexistentUser, httpTimeout, "", "", "")
 	if err == nil {
 		t.Fatalf("CheckOnline(%q) expected UserNotFoundError but got nil (synthetic user exists?)", syntheticNonexistentUser)
 	}
@@ -89,13 +89,13 @@ func TestFetchRoomInfo_LiveRoom(t *testing.T) {
 		t.Skip("set PIRATETOK_LIVE_TEST_USER to a currently-live TikTok username to run this test")
 	}
 
-	room, err := tthttp.CheckOnline(user, httpTimeout, "", "")
+	room, err := tthttp.CheckOnline(user, httpTimeout, "", "", "")
 	if err != nil {
 		t.Fatalf("CheckOnline(%q) failed: %v", user, err)
 	}
 
 	cookies := os.Getenv("PIRATETOK_LIVE_TEST_COOKIES")
-	info, err := tthttp.FetchRoomInfo(room.RoomID, httpTimeout, cookies, "", "")
+	info, err := tthttp.FetchRoomInfo(room.RoomID, httpTimeout, cookies, "", "", "")
 	if err != nil {
 		t.Fatalf("FetchRoomInfo(%q) failed: %v", room.RoomID, err)
 	}

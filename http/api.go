@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -61,12 +62,31 @@ func (e *AgeRestrictedError) Error() string {
 	return "age-restricted stream: 18+ room — pass session cookies to FetchRoomInfo()"
 }
 
+// buildTransport returns an http.Transport with optional explicit proxy.
+// When proxy is empty, falls back to HTTP_PROXY/HTTPS_PROXY env vars.
+func buildTransport(proxy string) (*http.Transport, error) {
+	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
+	if proxy != "" {
+		proxyURL, err := url.Parse(proxy)
+		if err != nil {
+			return nil, fmt.Errorf("invalid proxy URL: %w", err)
+		}
+		transport.Proxy = http.ProxyURL(proxyURL)
+	}
+	return transport, nil
+}
+
 // CheckOnline resolves a TikTok username to a room ID via the JSON API.
 // Pass empty language/region to auto-detect from system locale.
-func CheckOnline(username string, timeout time.Duration, language string, region string) (*RoomIDResult, error) {
+// Pass empty proxy to fall back to HTTP_PROXY/HTTPS_PROXY env vars.
+func CheckOnline(username string, timeout time.Duration, language string, region string, proxy string) (*RoomIDResult, error) {
+	transport, err := buildTransport(proxy)
+	if err != nil {
+		return nil, fmt.Errorf("check online: %w", err)
+	}
 	client := &http.Client{
 		Timeout:   timeout,
-		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+		Transport: transport,
 	}
 	lang, reg := resolveLocale(language, region)
 	browserLang := lang + "-" + reg
@@ -133,10 +153,15 @@ func CheckOnline(username string, timeout time.Duration, language string, region
 
 // FetchRoomInfo fetches optional room metadata. Cookies needed for 18+ rooms.
 // Pass empty language/region to auto-detect from system locale.
-func FetchRoomInfo(roomID string, timeout time.Duration, cookies string, language string, region string) (*RoomInfo, error) {
+// Pass empty proxy to fall back to HTTP_PROXY/HTTPS_PROXY env vars.
+func FetchRoomInfo(roomID string, timeout time.Duration, cookies string, language string, region string, proxy string) (*RoomInfo, error) {
+	transport, err := buildTransport(proxy)
+	if err != nil {
+		return nil, fmt.Errorf("room info: %w", err)
+	}
 	client := &http.Client{
 		Timeout:   timeout,
-		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+		Transport: transport,
 	}
 	tz := strings.ReplaceAll(SystemTimezone(), "/", "%2F")
 	lang, reg := resolveLocale(language, region)

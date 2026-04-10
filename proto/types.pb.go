@@ -2199,6 +2199,7 @@ type User struct {
 	IsFollower      bool   `protobuf:"varint,1029,opt,name=is_follower,json=isFollower,proto3" json:"is_follower,omitempty"`
 	IsFollowing     bool   `protobuf:"varint,1030,opt,name=is_following,json=isFollowing,proto3" json:"is_following,omitempty"`
 	IsBlock         bool   `protobuf:"varint,1048,opt,name=is_block,json=isBlock,proto3" json:"is_block,omitempty"`
+	IsSubscribe     bool   `protobuf:"varint,1090,opt,name=is_subscribe,json=isSubscribe,proto3" json:"is_subscribe,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2460,6 +2461,13 @@ func (x *User) GetIsFollowing() bool {
 func (x *User) GetIsBlock() bool {
 	if x != nil {
 		return x.IsBlock
+	}
+	return false
+}
+
+func (x *User) GetIsSubscribe() bool {
+	if x != nil {
+		return x.IsSubscribe
 	}
 	return false
 }
@@ -7861,7 +7869,7 @@ const file_proto_types_proto_rawDesc = "" +
 	"\x11is_broadcast_gift\x181 \x01(\bR\x0fisBroadcastGift\x12$\n" +
 	"\x0eis_random_gift\x183 \x01(\bR\fisRandomGift\x12\x1e\n" +
 	"\vis_box_gift\x184 \x01(\bR\tisBoxGift\x12,\n" +
-	"\x13can_put_in_gift_box\x185 \x01(\bR\x0fcanPutInGiftBox\"\xe4\x11\n" +
+	"\x13can_put_in_gift_box\x185 \x01(\bR\x0fcanPutInGiftBox\"\x88\x12\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
 	"\bnickname\x18\x03 \x01(\tR\bnickname\x12'\n" +
@@ -7903,7 +7911,8 @@ const file_proto_types_proto_rawDesc = "" +
 	"\vis_follower\x18\x85\b \x01(\bR\n" +
 	"isFollower\x12\"\n" +
 	"\fis_following\x18\x86\b \x01(\bR\visFollowing\x12\x1a\n" +
-	"\bis_block\x18\x98\b \x01(\bR\aisBlock\x1a\xa2\x01\n" +
+	"\bis_block\x18\x98\b \x01(\bR\aisBlock\x12\"\n" +
+	"\fis_subscribe\x18\xc2\b \x01(\bR\visSubscribe\x1a\xa2\x01\n" +
 	"\n" +
 	"FollowInfo\x12'\n" +
 	"\x0ffollowing_count\x18\x01 \x01(\x03R\x0efollowingCount\x12%\n" +

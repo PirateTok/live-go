@@ -27,6 +27,7 @@ type Client struct {
 	cookies      string
 	language     string
 	region       string
+	proxy        string
 }
 
 // NewClient creates a new TikTok Live client for the given username.
@@ -103,6 +104,13 @@ func (c *Client) Region(reg string) *Client {
 	return c
 }
 
+// Proxy sets an HTTP/HTTPS/SOCKS5 proxy URL for all HTTP and WSS connections.
+// When empty, falls back to HTTP_PROXY/HTTPS_PROXY environment variables.
+func (c *Client) Proxy(url string) *Client {
+	c.proxy = url
+	return c
+}
+
 // Connect resolves the room, then enters a reconnect loop.
 // Events are sent to the returned channel. The channel is closed when done.
 func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
@@ -116,7 +124,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 	}
 	acceptLang := fmt.Sprintf("%s-%s,%s;q=0.9", lang, reg, lang)
 
-	room, err := tthttp.CheckOnline(c.username, c.timeout, lang, reg)
+	room, err := tthttp.CheckOnline(c.username, c.timeout, lang, reg, c.proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +147,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 				ua = tthttp.RandomUA()
 			}
 
-			ttwid, err := auth.FetchTTWID(c.timeout, ua, "")
+			ttwid, err := auth.FetchTTWID(c.timeout, ua, c.proxy)
 			if err != nil {
 				log.Printf("ttwid fetch failed: %v", err)
 				break
@@ -152,7 +160,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 			}
 
 			wssURL := connection.BuildWSSURL(c.cdnHost, room.RoomID, tz, lang, reg)
-			wsErr := connection.RunWebSocket(ctx, wssURL, cookieHeader, ua, room.RoomID, c.staleTimeout, acceptLang, eventCh)
+			wsErr := connection.RunWebSocket(ctx, wssURL, cookieHeader, ua, room.RoomID, c.staleTimeout, acceptLang, c.proxy, eventCh)
 
 			var isDeviceBlocked bool
 			if wsErr != nil {
@@ -213,11 +221,11 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 // CheckOnline checks if a user is currently live without connecting.
 // Language and region auto-detected from system locale.
 func CheckOnline(username string, timeout time.Duration) (*tthttp.RoomIDResult, error) {
-	return tthttp.CheckOnline(username, timeout, "", "")
+	return tthttp.CheckOnline(username, timeout, "", "", "")
 }
 
 // FetchRoomInfo fetches optional room metadata. Pass cookies for 18+ rooms.
 // Language and region auto-detected from system locale.
 func FetchRoomInfo(roomID string, timeout time.Duration, cookies string) (*tthttp.RoomInfo, error) {
-	return tthttp.FetchRoomInfo(roomID, timeout, cookies, "", "")
+	return tthttp.FetchRoomInfo(roomID, timeout, cookies, "", "", "")
 }

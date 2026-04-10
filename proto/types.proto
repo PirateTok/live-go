@@ -431,6 +431,7 @@ message User {
   bool is_follower = 1029;
   bool is_following = 1030;
   bool is_block = 1048;
+  bool is_subscribe = 1090;
 
   message FollowInfo {
     int64 following_count = 1;
