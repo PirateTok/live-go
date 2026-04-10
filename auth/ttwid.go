@@ -15,7 +15,7 @@ import (
 // The userAgent parameter overrides the default random UA when non-empty.
 // The proxy parameter sets an HTTP/HTTPS proxy when non-empty.
 func FetchTTWID(timeout time.Duration, userAgent string, proxy string) (string, error) {
-	transport := &http.Transport{}
+	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {

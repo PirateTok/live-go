@@ -43,7 +43,7 @@ func ScrapeProfile(username string, ttwid string, timeout time.Duration, userAge
 	}
 	cookieHeader := buildCookieHeader(ttwid, cookies)
 
-	transport := &http.Transport{}
+	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {

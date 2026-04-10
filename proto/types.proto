@@ -349,6 +349,9 @@ message Image {
 // Badge display on user profiles / chat
 message BadgeStruct {
   int32 display_type = 1;
+  int32 badge_scene = 3;
+  bool display = 11;
+  PrivilegeLogExtra log_extra = 12;
   ImageBadge image = 20;
   TextBadge text = 21;
   StringBadge str = 22;
@@ -362,6 +365,11 @@ message BadgeStruct {
   message StringBadge {
     string str = 2;
   }
+}
+
+// Privilege log extra data (carries level for badges)
+message PrivilegeLogExtra {
+  string level = 5;
 }
 
 // Gift metadata
@@ -409,8 +417,8 @@ message User {
   int64 pay_score = 34;
   int64 ticket_count = 35;
   LinkmicStatus link_mic_stats = 37;
-  string display_id = 38;
-  string sec_uid = 46;
+  string unique_id = 38;
+  string display_id = 46;
   int32 user_role = 47;
   SubscribeInfo subscribe_info = 63;
   repeated BadgeStruct badge_list = 64;

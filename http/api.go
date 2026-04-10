@@ -64,7 +64,10 @@ func (e *AgeRestrictedError) Error() string {
 // CheckOnline resolves a TikTok username to a room ID via the JSON API.
 // Pass empty language/region to auto-detect from system locale.
 func CheckOnline(username string, timeout time.Duration, language string, region string) (*RoomIDResult, error) {
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{
+		Timeout:   timeout,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+	}
 	lang, reg := resolveLocale(language, region)
 	browserLang := lang + "-" + reg
 	url := fmt.Sprintf(
@@ -131,7 +134,10 @@ func CheckOnline(username string, timeout time.Duration, language string, region
 // FetchRoomInfo fetches optional room metadata. Cookies needed for 18+ rooms.
 // Pass empty language/region to auto-detect from system locale.
 func FetchRoomInfo(roomID string, timeout time.Duration, cookies string, language string, region string) (*RoomInfo, error) {
-	client := &http.Client{Timeout: timeout}
+	client := &http.Client{
+		Timeout:   timeout,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment},
+	}
 	tz := strings.ReplaceAll(SystemTimezone(), "/", "%2F")
 	lang, reg := resolveLocale(language, region)
 	browserLang := lang + "-" + reg
