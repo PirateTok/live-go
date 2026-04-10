@@ -10,7 +10,9 @@ const defaultCDNHost = "webcast-ws.tiktok.com"
 
 // BuildWSSURL constructs the TikTok Live WebSocket URL for a given room.
 // The timezone parameter should be an IANA timezone name (e.g. "Europe/London").
-func BuildWSSURL(cdnHost string, roomID string, timezone string, language string, region string) string {
+// When compress is true, the server sends gzip-compressed frames; when false,
+// uncompressed protobuf.
+func BuildWSSURL(cdnHost string, roomID string, timezone string, language string, region string, compress bool) string {
 	if cdnHost == "" {
 		cdnHost = defaultCDNHost
 	}
@@ -27,6 +29,11 @@ func BuildWSSURL(cdnHost string, roomID string, timezone string, language string
 	lastRtt := 100.0 + rand.Float64()*100.0
 	browserLanguage := language + "-" + region
 
+	compressValue := ""
+	if compress {
+		compressValue = "gzip"
+	}
+
 	params := url.Values{
 		"version_code":          {"180800"},
 		"device_platform":       {"web"},
@@ -42,7 +49,7 @@ func BuildWSSURL(cdnHost string, roomID string, timezone string, language string
 		"app_name":              {"tiktok_web"},
 		"sup_ws_ds_opt":         {"1"},
 		"update_version_code":   {"2.0.0"},
-		"compress":              {"gzip"},
+		"compress":              {compressValue},
 		"webcast_language":      {language},
 		"ws_direct":             {"1"},
 		"aid":                   {"1988"},

@@ -28,6 +28,7 @@ type Client struct {
 	language     string
 	region       string
 	proxy        string
+	compress     bool
 }
 
 // NewClient creates a new TikTok Live client for the given username.
@@ -38,6 +39,7 @@ func NewClient(username string) *Client {
 		timeout:      10 * time.Second,
 		maxRetries:   5,
 		staleTimeout: 60 * time.Second,
+		compress:     true,
 	}
 }
 
@@ -111,6 +113,13 @@ func (c *Client) Proxy(url string) *Client {
 	return c
 }
 
+// Compress enables or disables gzip compression for the WSS connection.
+// Defaults to true. When false, the server sends uncompressed protobuf frames.
+func (c *Client) Compress(enabled bool) *Client {
+	c.compress = enabled
+	return c
+}
+
 // Connect resolves the room, then enters a reconnect loop.
 // Events are sent to the returned channel. The channel is closed when done.
 func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
@@ -159,7 +168,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 				cookieHeader = fmt.Sprintf("ttwid=%s; %s", ttwid, c.cookies)
 			}
 
-			wssURL := connection.BuildWSSURL(c.cdnHost, room.RoomID, tz, lang, reg)
+			wssURL := connection.BuildWSSURL(c.cdnHost, room.RoomID, tz, lang, reg, c.compress)
 			wsErr := connection.RunWebSocket(ctx, wssURL, cookieHeader, ua, room.RoomID, c.staleTimeout, acceptLang, c.proxy, eventCh)
 
 			var isDeviceBlocked bool

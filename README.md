@@ -31,11 +31,15 @@ func main() {
             fmt.Println("connected to room:", evt.RoomID)
         case events.EventChat:
             msg := evt.Data.(*pb.WebcastChatMessage)
-            fmt.Printf("[chat] %s: %s\n", msg.User.GetNickname(), msg.GetContent())
+            fmt.Printf("[chat] %s: %s\n", msg.User.Nickname, msg.Content)
         case events.EventGift:
             msg := evt.Data.(*pb.WebcastGiftMessage)
+            giftName := fmt.Sprintf("gift#%d", msg.GiftId)
+            if msg.Gift != nil {
+                giftName = msg.Gift.Name
+            }
             fmt.Printf("[gift] %s sent %s x%d\n",
-                msg.User.GetNickname(), msg.GetGiftName(), msg.GetRepeatCount())
+                msg.User.Nickname, giftName, msg.RepeatCount)
         case events.EventDisconnected:
             fmt.Println("disconnected")
             return
@@ -71,7 +75,7 @@ go get github.com/PirateTok/live-go
 - **Zero signing dependency** — no API keys, no signing server, no external auth
 - **64 decoded event types** — committed protobuf codegen, no build-time protoc
 - **Auto-reconnection** — stale detection, exponential backoff, self-healing auth
-- **HTTP proxy inheritance** — plain HTTP requests use Go's default transport behavior, including env proxy settings
+- **Full proxy support** — HTTP/HTTPS/SOCKS5 proxy for all HTTP and WSS connections, env var fallback
 - **Enriched User data** — badges, gifter level, moderator status, follow info, fan club
 - **Sub-routed convenience events** — `EventFollow`, `EventShare`, `EventJoin`, `EventLiveEnded`
 - **2 dependencies** — `gobwas/ws` + `google.golang.org/protobuf`
@@ -85,6 +89,21 @@ client := golive.NewClient("username_here").
     StaleTimeout(90 * time.Second)
 ```
 
+| Method | Default | Description |
+|:-------|:--------|:------------|
+| `.CdnEU()` | global | Use the EU CDN endpoint |
+| `.CdnUS()` | global | Use the US CDN endpoint |
+| `.Cdn(host)` | `"webcast-ws.tiktok.com"` | Custom CDN host |
+| `.Timeout(d)` | `10s` | HTTP timeout for API calls |
+| `.MaxRetries(n)` | `5` | Max reconnection attempts |
+| `.StaleTimeout(d)` | `60s` | Close and reconnect after no data for this duration |
+| `.UserAgent(ua)` | random pool | Override the random UA pool with a fixed UA |
+| `.Cookies(cookies)` | none | Append session cookies alongside ttwid in the WSS cookie header |
+| `.Language(lang)` | system locale | Override detected language (e.g. `"pt"`, `"ro"`) |
+| `.Region(reg)` | system locale | Override detected region (e.g. `"BR"`, `"RO"`) |
+| `.Proxy(url)` | env vars | HTTP/HTTPS/SOCKS5 proxy URL for all HTTP and WSS connections |
+| `.Compress(enabled)` | `true` | Disable gzip compression for WSS payloads (trades bandwidth for CPU) |
+
 ## Room info (optional, separate call)
 
 ```go
@@ -97,10 +116,12 @@ info, err := golive.FetchRoomInfo("ROOM_ID", 10*time.Second, "sessionid=abc; sid
 ## Examples
 
 ```bash
-go run ./cmd/basic_chat <username>       # connect + print chat events
-go run ./cmd/online_check <username>     # check if user is live
-go run ./cmd/stream_info <username>      # fetch room metadata + stream URLs
-go run ./cmd/gift_tracker <username>     # track gifts with diamond totals
+go run ./cmd/basic_chat <username>        # connect + print chat events
+go run ./cmd/online_check <username>      # check if user is live
+go run ./cmd/stream_info <username>       # fetch room metadata + stream URLs
+go run ./cmd/gift_tracker <username>      # track gifts with diamond totals
+go run ./cmd/gift_streak <username>       # track gift streaks with delta computation
+go run ./cmd/profile_lookup [username]    # fetch profile via SIGI scraper + cache
 ```
 
 ## Replay testing
@@ -113,11 +134,6 @@ go test -run TestReplay -v
 ```
 
 Tests skip gracefully if testdata is not found. You can also set `PIRATETOK_TESTDATA` to point to a custom location.
-
-## Known gaps
-
-- WSS proxy transport support is not implemented yet.
-- Explicit `DEVICE_BLOCKED` handshake handling is not implemented yet.
 
 ## License
 

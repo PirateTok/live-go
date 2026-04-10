@@ -120,9 +120,17 @@ type giftGroupResult struct {
 // --- testdata location ---
 
 func findCapturePath(name string) (capPath, manPath string, found bool) {
+	return findCapturePathSuffix(name, ".bin")
+}
+
+func findRawCapturePath(name string) (capPath, manPath string, found bool) {
+	return findCapturePathSuffix(name, "_raw.bin")
+}
+
+func findCapturePathSuffix(name, suffix string) (capPath, manPath string, found bool) {
 	// 1. $PIRATETOK_TESTDATA
 	if dir := os.Getenv("PIRATETOK_TESTDATA"); dir != "" {
-		cap := filepath.Join(dir, "captures", name+".bin")
+		cap := filepath.Join(dir, "captures", name+suffix)
 		man := filepath.Join(dir, "manifests", name+".json")
 		if fileExists(cap) && fileExists(man) {
 			return cap, man, true
@@ -130,7 +138,7 @@ func findCapturePath(name string) (capPath, manPath string, found bool) {
 	}
 
 	// 2. testdata/ in repo root
-	cap := filepath.Join("testdata", "captures", name+".bin")
+	cap := filepath.Join("testdata", "captures", name+suffix)
 	man := filepath.Join("testdata", "manifests", name+".json")
 	if fileExists(cap) && fileExists(man) {
 		return cap, man, true
@@ -649,4 +657,41 @@ func TestReplayHappyhappygaltv(t *testing.T) {
 
 func TestReplayFox4newsdallasfortworth(t *testing.T) {
 	runCaptureTest(t, "fox4newsdallasfortworth")
+}
+
+// --- raw (uncompressed) capture tests ---
+
+func runRawCaptureTest(t *testing.T, name string) {
+	t.Helper()
+
+	capPath, manPath, found := findRawCapturePath(name)
+	if !found {
+		t.Skipf("raw testdata not found for %s (set PIRATETOK_TESTDATA or clone live-testdata)", name)
+		return
+	}
+
+	manData, err := os.ReadFile(manPath)
+	if err != nil {
+		t.Fatalf("cannot read manifest %s: %v", manPath, err)
+	}
+	var m manifest
+	if err := json.Unmarshal(manData, &m); err != nil {
+		t.Fatalf("cannot parse manifest %s: %v", manPath, err)
+	}
+
+	frames := readCapture(t, capPath)
+	result := replay(t, frames)
+	assertReplay(t, name+"_raw", result, m)
+}
+
+func TestReplayRawCalvinterest6(t *testing.T) {
+	runRawCaptureTest(t, "calvinterest6")
+}
+
+func TestReplayRawHappyhappygaltv(t *testing.T) {
+	runRawCaptureTest(t, "happyhappygaltv")
+}
+
+func TestReplayRawFox4newsdallasfortworth(t *testing.T) {
+	runRawCaptureTest(t, "fox4newsdallasfortworth")
 }
