@@ -129,16 +129,9 @@ func findCapturePath(name string) (capPath, manPath string, found bool) {
 		}
 	}
 
-	// 2. ../live-testdata/
-	cap := filepath.Join("..", "live-testdata", "captures", name+".bin")
-	man := filepath.Join("..", "live-testdata", "manifests", name+".json")
-	if fileExists(cap) && fileExists(man) {
-		return cap, man, true
-	}
-
-	// 3. ../live-rs/captures/ (dev fallback)
-	cap = filepath.Join("..", "live-rs", "captures", name+".bin")
-	man = filepath.Join("..", "live-rs", "captures", "manifests", name+".json")
+	// 2. testdata/ in repo root
+	cap := filepath.Join("testdata", "captures", name+".bin")
+	man := filepath.Join("testdata", "manifests", name+".json")
 	if fileExists(cap) && fileExists(man) {
 		return cap, man, true
 	}
