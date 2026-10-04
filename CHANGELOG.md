@@ -2,6 +2,15 @@
 
 ## v0.2.0
 
+Breaking:
+- `WebcastRoomUserSeqMessage.Total` → `ViewerCount` (tag 3, current viewers); `Contributor.Score`/`Rank` int32 → int64.
+- `RoomIDResult` gains `AnchorID` (check_online result shape).
+- `connection.BuildWSSURL(..., compress, heartbeatInterval)` and
+  `connection.RunWebSocket(ctx, url, cookie, ua, roomID, heartbeatInterval, staleTimeout, ...)` take the heartbeat interval.
+- Replay tests fail (instead of skip) when testdata is missing.
+
+Changes:
+
 - ttwid fetch retries up to 8× (750 ms apart) when TikTok omits the cookie; transport errors still propagate.
 - Reconnect loop: a ttwid failure is a failed attempt (`EventReconnecting`, backoff) instead of silently ending the stream.
 - ttwid + UA are reused across reconnects and rotated only on DEVICE_BLOCKED or a connection that died within 30 s.
