@@ -39,7 +39,11 @@ func (e *DeviceBlockedError) Error() string {
 // The cookieHeader is the full Cookie header value (e.g. "ttwid=xxx; sessionid=yyy").
 // Pass acceptLanguage for locale-aware header (e.g. "ro-RO,ro;q=0.9"). Empty = auto-detect.
 // Pass proxy URL for HTTP CONNECT tunneling; empty falls back to env vars.
-func RunWebSocket(ctx context.Context, wssURL string, cookieHeader string, userAgent string, roomID string, staleTimeout time.Duration, acceptLanguage string, proxy string, eventCh chan<- events.Event) error {
+// heartbeatInterval <= 0 means the 10s default.
+func RunWebSocket(ctx context.Context, wssURL string, cookieHeader string, userAgent string, roomID string, heartbeatInterval time.Duration, staleTimeout time.Duration, acceptLanguage string, proxy string, eventCh chan<- events.Event) error {
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = defaultHeartbeatInterval
+	}
 	if acceptLanguage == "" {
 		lang, reg := tthttp.SystemLocale()
 		acceptLanguage = fmt.Sprintf("%s-%s,%s;q=0.9", lang, reg, lang)
@@ -109,14 +113,16 @@ func RunWebSocket(ctx context.Context, wssURL string, cookieHeader string, userA
 	}
 
 	// heartbeat goroutine
+	// stopped as soon as the read loop ends, so a dead session never waits a tick
+	hbCtx, stopHeartbeat := context.WithCancel(ctx)
 	heartbeatDone := make(chan struct{})
 	go func() {
 		defer close(heartbeatDone)
-		ticker := time.NewTicker(defaultHeartbeatInterval)
+		ticker := time.NewTicker(heartbeatInterval)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-hbCtx.Done():
 				return
 			case <-ticker.C:
 				hbBytes, err := buildHeartbeat(roomID)
@@ -135,6 +141,7 @@ func RunWebSocket(ctx context.Context, wssURL string, cookieHeader string, userA
 	err = readLoop(ctx, conn, roomID, staleTimeout, eventCh)
 
 	// No disconnect emit — client owns lifecycle
+	stopHeartbeat()
 	<-heartbeatDone
 	return err
 }

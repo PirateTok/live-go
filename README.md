@@ -95,7 +95,8 @@ client := golive.NewClient("username_here").
 | `.CdnUS()` | global | Use the US CDN endpoint |
 | `.Cdn(host)` | `"webcast-ws.tiktok.com"` | Custom CDN host |
 | `.Timeout(d)` | `10s` | HTTP timeout for API calls |
-| `.MaxRetries(n)` | `5` | Max reconnection attempts |
+| `.HeartbeatInterval(d)` | `10s` | Interval between WSS heartbeat frames (also sent as `heartbeat_duration`) |
+| `.MaxRetries(n)` | `5` | Max consecutive failed attempts (reset after a 30s healthy session) |
 | `.StaleTimeout(d)` | `60s` | Close and reconnect after no data for this duration |
 | `.UserAgent(ua)` | random pool | Override the random UA pool with a fixed UA |
 | `.Cookies(cookies)` | none | Append session cookies alongside ttwid in the WSS cookie header |
@@ -113,6 +114,37 @@ info, err := golive.FetchRoomInfo("ROOM_ID", 10*time.Second, "")
 info, err := golive.FetchRoomInfo("ROOM_ID", 10*time.Second, "sessionid=abc; sid_tt=abc")
 ```
 
+## Viewers
+
+Every `EventRoomUserSeq` carries the counters and the top-viewers box — no cookies needed:
+
+```go
+msg := evt.Data.(*pb.WebcastRoomUserSeqMessage)
+msg.ViewerCount // in the room right now (goes up and down)
+msg.TotalUser   // unique viewers over the whole stream (only grows)
+for _, c := range msg.TopViewers() { // usually top 3, sorted by rank
+    fmt.Println(c.Rank, c.GetUser().GetNickname(), c.Score)
+}
+```
+
+The full audience roster is a separate call. TikTok gates it behind a login, so session cookies are
+**required for this call only** — without them it returns `*tthttp.SessionRequiredError`:
+
+```go
+room, _ := golive.CheckOnline("username_here", 10*time.Second)
+audience, err := golive.FetchRoomAudience(room.RoomID, room.AnchorID, 10*time.Second, "sessionid=abc; sid_tt=abc")
+// audience.Total, audience.Anonymous, audience.Viewers (rank, score, username, follower count, ...)
+```
+
+Pass `""` as the anchor ID to resolve it from room info (one extra request).
+
+## Reconnection
+
+`Connect` returns once the room is resolved; the reconnect loop runs in the background until the
+context is cancelled or `MaxRetries` consecutive attempts fail. The ttwid cookie is fetched with up to
+8 retries (TikTok only sets it intermittently), then reused across reconnects together with the UA —
+both rotate only on DEVICE_BLOCKED or a connection that died within 30s.
+
 ## Examples
 
 ```bash
@@ -122,6 +154,7 @@ go run ./cmd/stream_info <username>       # fetch room metadata + stream URLs
 go run ./cmd/gift_tracker <username>      # track gifts with diamond totals
 go run ./cmd/gift_streak <username>       # track gift streaks with delta computation
 go run ./cmd/profile_lookup [username]    # fetch profile via SIGI scraper + cache
+go run ./cmd/audience <username> "sessionid=...; sid_tt=..."  # full viewer roster (login required)
 ```
 
 ## Replay testing
@@ -133,7 +166,8 @@ git clone https://github.com/PirateTok/live-testdata testdata
 go test -run TestReplay -v
 ```
 
-Tests skip gracefully if testdata is not found. You can also set `PIRATETOK_TESTDATA` to point to a custom location.
+Replay tests fail if testdata is not found — they never pass on missing data. Set `PIRATETOK_TESTDATA` to point to a custom location.
+Offline unit tests (ttwid retry, reconnect budget, top viewers, audience parsing) need no network: `go test ./...`.
 
 ## License
 

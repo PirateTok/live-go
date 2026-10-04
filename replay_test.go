@@ -99,6 +99,9 @@ type replayResult struct {
 	nonComboCount      uint64
 	streakFinals       uint64
 	negativeDeltas     uint64
+	viewerCounts       []int64
+	totalUsers         []int32
+	topViewers         uint64
 }
 
 type likeEventResult struct {
@@ -409,6 +412,12 @@ func replay(t *testing.T, frames [][]byte) replayResult {
 					r.joinCount++
 				case events.EventLiveEnded:
 					r.liveEndedCount++
+				case events.EventRoomUserSeq:
+					if seq, ok := evt.Data.(*pb.WebcastRoomUserSeqMessage); ok {
+						r.viewerCounts = append(r.viewerCounts, seq.ViewerCount)
+						r.totalUsers = append(r.totalUsers, seq.TotalUser)
+						r.topViewers += uint64(len(seq.TopViewers()))
+					}
 				case events.EventUnknown:
 					if unk, ok := evt.Data.(*events.UnknownEvent); ok {
 						r.unknownTypes[unk.Method]++
@@ -418,7 +427,9 @@ func replay(t *testing.T, frames [][]byte) replayResult {
 
 			if msg.Method == "WebcastLikeMessage" {
 				likeMsg := &pb.WebcastLikeMessage{}
-				if err := proto.Unmarshal(msg.Payload, likeMsg); err == nil {
+				if err := proto.Unmarshal(msg.Payload, likeMsg); err != nil {
+					r.decodeFailures++
+				} else {
 					stats := likeAcc.Process(likeMsg)
 					r.likeEvents = append(r.likeEvents, likeEventResult{
 						wireCount:     likeMsg.Count,
@@ -432,7 +443,9 @@ func replay(t *testing.T, frames [][]byte) replayResult {
 
 			if msg.Method == "WebcastGiftMessage" {
 				giftMsg := &pb.WebcastGiftMessage{}
-				if err := proto.Unmarshal(msg.Payload, giftMsg); err == nil {
+				if err := proto.Unmarshal(msg.Payload, giftMsg); err != nil {
+					r.decodeFailures++
+				} else {
 					isCombo := giftMsg.Gift != nil && giftMsg.Gift.Type == 1
 					if isCombo {
 						r.comboCount++
@@ -627,9 +640,14 @@ func runCaptureTest(t *testing.T, name string) {
 
 	capPath, manPath, found := findCapturePath(name)
 	if !found {
-		t.Skipf("testdata not found for %s (set PIRATETOK_TESTDATA or clone live-testdata)", name)
-		return
+		t.Fatalf("testdata not found for %s (set PIRATETOK_TESTDATA or place captures/ + manifests/ in testdata/)", name)
 	}
+	runCapture(t, name, capPath, manPath)
+}
+
+// runCapture fails on missing or empty data — a replay test never passes vacuously.
+func runCapture(t *testing.T, label, capPath, manPath string) {
+	t.Helper()
 
 	manData, err := os.ReadFile(manPath)
 	if err != nil {
@@ -641,8 +659,41 @@ func runCaptureTest(t *testing.T, name string) {
 	}
 
 	frames := readCapture(t, capPath)
+	if len(frames) == 0 {
+		t.Fatalf("%s: capture %s has no frames", label, capPath)
+	}
 	result := replay(t, frames)
-	assertReplay(t, name, result, m)
+	t.Logf("%s: %d frames, %d messages, %d events from %s", label, len(frames), result.messageCount, result.eventCount, capPath)
+	assertReplay(t, label, result, m)
+	assertViewerCounts(t, label, result, m)
+}
+
+// assertViewerCounts pins live-go#1: RoomUserSeq tag 3 (viewer_count, current
+// viewers) and tag 7 (total_user, unique viewers over the stream) both decode.
+func assertViewerCounts(t *testing.T, label string, r replayResult, m manifest) {
+	t.Helper()
+	seqs := m.EventTypes["RoomUserSeq"]
+	if uint64(len(r.viewerCounts)) != seqs {
+		t.Fatalf("%s: decoded %d RoomUserSeq, manifest has %d", label, len(r.viewerCounts), seqs)
+	}
+	if seqs == 0 {
+		return
+	}
+	minV, maxV := r.viewerCounts[0], r.viewerCounts[0]
+	for _, v := range r.viewerCounts {
+		minV = min(minV, v)
+		maxV = max(maxV, v)
+	}
+	if maxV <= 0 {
+		t.Fatalf("%s: viewer_count never > 0 across %d RoomUserSeq", label, seqs)
+	}
+	last := len(r.totalUsers) - 1
+	if r.totalUsers[last] < r.totalUsers[0] {
+		t.Fatalf("%s: total_user went down: first=%d last=%d", label, r.totalUsers[0], r.totalUsers[last])
+	}
+	t.Logf("%s: %d RoomUserSeq, viewer_count first=%d last=%d min=%d max=%d, total_user first=%d last=%d, top viewers seen=%d",
+		label, seqs, r.viewerCounts[0], r.viewerCounts[len(r.viewerCounts)-1], minV, maxV,
+		r.totalUsers[0], r.totalUsers[last], r.topViewers)
 }
 
 // --- test functions ---
@@ -666,22 +717,9 @@ func runRawCaptureTest(t *testing.T, name string) {
 
 	capPath, manPath, found := findRawCapturePath(name)
 	if !found {
-		t.Skipf("raw testdata not found for %s (set PIRATETOK_TESTDATA or clone live-testdata)", name)
-		return
+		t.Fatalf("raw testdata not found for %s (set PIRATETOK_TESTDATA or place captures/ + manifests/ in testdata/)", name)
 	}
-
-	manData, err := os.ReadFile(manPath)
-	if err != nil {
-		t.Fatalf("cannot read manifest %s: %v", manPath, err)
-	}
-	var m manifest
-	if err := json.Unmarshal(manData, &m); err != nil {
-		t.Fatalf("cannot parse manifest %s: %v", manPath, err)
-	}
-
-	frames := readCapture(t, capPath)
-	result := replay(t, frames)
-	assertReplay(t, name+"_raw", result, m)
+	runCapture(t, name+"_raw", capPath, manPath)
 }
 
 func TestReplayRawCalvinterest6(t *testing.T) {

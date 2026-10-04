@@ -13,6 +13,8 @@ import (
 // RoomIDResult holds the result of a successful room ID resolution.
 type RoomIDResult struct {
 	RoomID string
+	// AnchorID is the streamer's user ID (data.user.id); feeds FetchRoomAudience.
+	AnchorID string
 }
 
 // RoomInfo holds optional metadata fetched from the room/info endpoint.
@@ -22,6 +24,7 @@ type RoomInfo struct {
 	Likes     int64
 	TotalUser int64
 	StreamURL *StreamURLs
+	RawJSON   string
 }
 
 // StreamURLs holds the FLV stream URLs by quality tier.
@@ -121,8 +124,9 @@ func CheckOnline(username string, timeout time.Duration, language string, region
 		StatusCode int64 `json:"statusCode"`
 		Data       struct {
 			User struct {
-				RoomID string `json:"roomId"`
-				Status int    `json:"status"`
+				ID     json.RawMessage `json:"id"`
+				RoomID string          `json:"roomId"`
+				Status int             `json:"status"`
 			} `json:"user"`
 			LiveRoom struct {
 				Status int `json:"status"`
@@ -148,7 +152,20 @@ func CheckOnline(username string, timeout time.Duration, language string, region
 		return nil, &HostNotOnlineError{Username: username}
 	}
 
-	return &RoomIDResult{RoomID: roomID}, nil
+	return &RoomIDResult{RoomID: roomID, AnchorID: idString(result.Data.User.ID)}, nil
+}
+
+// idString reads an ID TikTok serves as either a JSON string or a number.
+func idString(raw json.RawMessage) string {
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	var n json.Number
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return n.String()
+	}
+	return ""
 }
 
 // FetchRoomInfo fetches optional room metadata. Cookies needed for 18+ rooms.
@@ -224,6 +241,7 @@ func FetchRoomInfo(roomID string, timeout time.Duration, cookies string, languag
 		Likes:     raw.Data.Stats.LikeCount,
 		Viewers:   raw.Data.UserCount,
 		TotalUser: raw.Data.Stats.TotalUser,
+		RawJSON:   string(body),
 	}
 
 	if len(raw.Data.StreamURL) > 0 {

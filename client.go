@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"time"
 
 	"github.com/PirateTok/live-go/auth"
@@ -18,29 +17,38 @@ import (
 
 // Client connects to TikTok Live streams and emits events.
 type Client struct {
-	username     string
-	cdnHost      string
-	timeout      time.Duration
-	maxRetries   int
-	staleTimeout time.Duration
-	userAgent    string
-	cookies      string
-	language     string
-	region       string
-	proxy        string
-	compress     bool
+	username          string
+	cdnHost           string
+	timeout           time.Duration
+	heartbeatInterval time.Duration
+	maxRetries        int
+	staleTimeout      time.Duration
+	userAgent         string
+	cookies           string
+	language          string
+	region            string
+	proxy             string
+	compress          bool
 }
 
 // NewClient creates a new TikTok Live client for the given username.
 func NewClient(username string) *Client {
 	return &Client{
-		username:     username,
-		cdnHost:      "webcast-ws.tiktok.com",
-		timeout:      10 * time.Second,
-		maxRetries:   5,
-		staleTimeout: 60 * time.Second,
-		compress:     true,
+		username:          username,
+		cdnHost:           "webcast-ws.tiktok.com",
+		timeout:           10 * time.Second,
+		heartbeatInterval: 10 * time.Second,
+		maxRetries:        5,
+		staleTimeout:      60 * time.Second,
+		compress:          true,
 	}
+}
+
+// HeartbeatInterval sets the interval between WSS heartbeat frames. Defaults
+// to 10s. Also sent to TikTok as the heartbeat_duration URL param (ms).
+func (c *Client) HeartbeatInterval(d time.Duration) *Client {
+	c.heartbeatInterval = d
+	return c
 }
 
 // CdnEU sets the CDN endpoint to EU.
@@ -67,7 +75,8 @@ func (c *Client) Timeout(d time.Duration) *Client {
 	return c
 }
 
-// MaxRetries sets the max reconnection attempts. Defaults to 5.
+// MaxRetries sets the max consecutive failed reconnection attempts. Defaults
+// to 5. A session that stayed up 30s resets the count.
 func (c *Client) MaxRetries(n int) *Client {
 	c.maxRetries = n
 	return c
@@ -144,80 +153,7 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 
 	go func() {
 		defer close(eventCh)
-		attempt := 0
-		for {
-			if ctx.Err() != nil {
-				break
-			}
-
-			// Pick UA: user-configured or random from pool
-			ua := c.userAgent
-			if ua == "" {
-				ua = tthttp.RandomUA()
-			}
-
-			ttwid, err := auth.FetchTTWID(c.timeout, ua, c.proxy)
-			if err != nil {
-				log.Printf("ttwid fetch failed: %v", err)
-				break
-			}
-
-			// Build cookie header: ttwid + optional user cookies
-			cookieHeader := fmt.Sprintf("ttwid=%s", ttwid)
-			if c.cookies != "" {
-				cookieHeader = fmt.Sprintf("ttwid=%s; %s", ttwid, c.cookies)
-			}
-
-			wssURL := connection.BuildWSSURL(c.cdnHost, room.RoomID, tz, lang, reg, c.compress)
-			wsErr := connection.RunWebSocket(ctx, wssURL, cookieHeader, ua, room.RoomID, c.staleTimeout, acceptLang, c.proxy, eventCh)
-
-			var isDeviceBlocked bool
-			if wsErr != nil {
-				var dbErr *connection.DeviceBlockedError
-				if errors.As(wsErr, &dbErr) {
-					isDeviceBlocked = true
-					log.Printf("DEVICE_BLOCKED -- rotating ttwid + UA")
-				} else {
-					log.Printf("wss error: %v", wsErr)
-				}
-			}
-
-			if ctx.Err() != nil {
-				break
-			}
-
-			attempt++
-			if attempt > c.maxRetries {
-				log.Printf("max retries (%d) exceeded", c.maxRetries)
-				break
-			}
-
-			// On DEVICE_BLOCKED: short 2s delay since we're getting a fresh
-			// ttwid + UA anyway. On other errors: exponential backoff.
-			var delay time.Duration
-			if isDeviceBlocked {
-				delay = 2 * time.Second
-			} else {
-				delay = time.Duration(math.Min(float64(int(1)<<attempt), 30)) * time.Second
-			}
-
-			select {
-			case eventCh <- events.Event{
-				Type:   events.EventReconnecting,
-				RoomID: room.RoomID,
-				Data:   fmt.Sprintf("attempt=%d max=%d delay=%v", attempt, c.maxRetries, delay),
-			}:
-			default:
-			}
-			log.Printf("reconnecting in %v (attempt %d/%d)", delay, attempt, c.maxRetries)
-
-			select {
-			case <-time.After(delay):
-			case <-ctx.Done():
-				break
-			}
-		}
-
+		c.reconnectLoop(ctx, room.RoomID, tz, lang, reg, acceptLang, eventCh)
 		select {
 		case eventCh <- events.Event{Type: events.EventDisconnected}:
 		default:
@@ -225,6 +161,95 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 	}()
 
 	return eventCh, nil
+}
+
+// session is the ttwid + UA pair reused across reconnects.
+type session struct {
+	ttwid string
+	ua    string
+}
+
+// reconnectLoop fetches ttwid once and reuses it; it rotates ttwid + UA only
+// on DEVICE_BLOCKED, a ttwid failure, or a connection that died young.
+func (c *Client) reconnectLoop(ctx context.Context, roomID, tz, lang, reg, acceptLang string, eventCh chan events.Event) {
+	budget := reconnectBudget{maxRetries: c.maxRetries}
+	var held *session
+	for ctx.Err() == nil {
+		var exit sessionExit
+		var lived time.Duration
+		if held == nil {
+			held = c.freshSession()
+		}
+		if held == nil {
+			exit = exitNoTTWID
+		} else {
+			started := time.Now()
+			exit = c.runSession(ctx, held, roomID, tz, lang, reg, acceptLang, eventCh)
+			lived = time.Since(started)
+		}
+		if ctx.Err() != nil {
+			return
+		}
+
+		j := judge(exit, lived)
+		if j.rotate {
+			held = nil
+		}
+		attempt, delay, giveUp := budget.record(j.end)
+		if giveUp {
+			log.Printf("max retries (%d) exceeded at attempt %d", c.maxRetries, attempt)
+			return
+		}
+
+		select {
+		case eventCh <- events.Event{
+			Type:   events.EventReconnecting,
+			RoomID: roomID,
+			Data:   fmt.Sprintf("attempt=%d max=%d delay=%v", attempt, c.maxRetries, delay),
+		}:
+		default:
+		}
+		log.Printf("reconnecting in %v (attempt %d/%d)", delay, attempt, c.maxRetries)
+
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// freshSession picks a UA and fetches a ttwid; nil means the fetch failed.
+func (c *Client) freshSession() *session {
+	ua := c.userAgent
+	if ua == "" {
+		ua = tthttp.RandomUA()
+	}
+	ttwid, err := auth.FetchTTWID(c.timeout, ua, c.proxy)
+	if err != nil {
+		log.Printf("ttwid acquisition failed: %v", err)
+		return nil
+	}
+	return &session{ttwid: ttwid, ua: ua}
+}
+
+func (c *Client) runSession(ctx context.Context, s *session, roomID, tz, lang, reg, acceptLang string, eventCh chan events.Event) sessionExit {
+	cookieHeader := fmt.Sprintf("ttwid=%s", s.ttwid)
+	if c.cookies != "" {
+		cookieHeader = fmt.Sprintf("ttwid=%s; %s", s.ttwid, c.cookies)
+	}
+	wssURL := connection.BuildWSSURL(c.cdnHost, roomID, tz, lang, reg, c.compress, c.heartbeatInterval)
+	err := connection.RunWebSocket(ctx, wssURL, cookieHeader, s.ua, roomID, c.heartbeatInterval, c.staleTimeout, acceptLang, c.proxy, eventCh)
+	if err == nil {
+		return exitClosed
+	}
+	var dbErr *connection.DeviceBlockedError
+	if errors.As(err, &dbErr) {
+		log.Printf("DEVICE_BLOCKED -- rotating ttwid + UA")
+		return exitDeviceBlocked
+	}
+	log.Printf("wss error: %v", err)
+	return exitErrored
 }
 
 // CheckOnline checks if a user is currently live without connecting.
@@ -237,4 +262,12 @@ func CheckOnline(username string, timeout time.Duration) (*tthttp.RoomIDResult, 
 // Language and region auto-detected from system locale.
 func FetchRoomInfo(roomID string, timeout time.Duration, cookies string) (*tthttp.RoomInfo, error) {
 	return tthttp.FetchRoomInfo(roomID, timeout, cookies, "", "", "")
+}
+
+// FetchRoomAudience fetches the full viewer roster. Login-gated: session
+// cookies are required for this call only (*tthttp.SessionRequiredError
+// otherwise). Pass "" as anchorID to resolve it from room info.
+// Language and region auto-detected from system locale.
+func FetchRoomAudience(roomID string, anchorID string, timeout time.Duration, cookies string) (*tthttp.RoomAudience, error) {
+	return tthttp.FetchRoomAudience(roomID, anchorID, timeout, cookies, "", "", "")
 }

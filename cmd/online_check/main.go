@@ -33,6 +33,6 @@ func main() {
 			}
 			continue
 		}
-		fmt.Printf("  LIVE  @%s — room %s\n", username, result.RoomID)
+		fmt.Printf("  LIVE  @%s — room %s (anchor %s)\n", username, result.RoomID, result.AnchorID)
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"strconv"
+	"time"
 )
 
 const defaultCDNHost = "webcast-ws.tiktok.com"
@@ -12,7 +14,11 @@ const defaultCDNHost = "webcast-ws.tiktok.com"
 // The timezone parameter should be an IANA timezone name (e.g. "Europe/London").
 // When compress is true, the server sends gzip-compressed frames; when false,
 // uncompressed protobuf.
-func BuildWSSURL(cdnHost string, roomID string, timezone string, language string, region string, compress bool) string {
+// heartbeatInterval feeds the heartbeat_duration param (ms); <= 0 means 10s.
+func BuildWSSURL(cdnHost string, roomID string, timezone string, language string, region string, compress bool, heartbeatInterval time.Duration) string {
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = defaultHeartbeatInterval
+	}
 	if cdnHost == "" {
 		cdnHost = defaultCDNHost
 	}
@@ -60,7 +66,7 @@ func BuildWSSURL(cdnHost string, roomID string, timezone string, language string
 		"identity":              {"audience"},
 		"history_comment_count": {"6"},
 		"last_rtt":              {fmt.Sprintf("%.3f", lastRtt)},
-		"heartbeat_duration":    {"10000"},
+		"heartbeat_duration":    {strconv.FormatInt(heartbeatInterval.Milliseconds(), 10)},
 		"resp_content_type":     {"protobuf"},
 		"did_rule":              {"3"},
 	}

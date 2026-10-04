@@ -72,7 +72,12 @@ func main() {
 
 		case events.EventRoomUserSeq:
 			msg := evt.Data.(*pb.WebcastRoomUserSeqMessage)
-			fmt.Printf("[viewers] %d total, pop=%d\n", msg.TotalUser, msg.Popularity)
+			// ViewerCount = in the room right now (goes up and down);
+			// TotalUser = unique viewers over the whole stream (only grows).
+			fmt.Printf("[viewers] %d watching, %d total unique\n", msg.ViewerCount, msg.TotalUser)
+			for _, c := range msg.TopViewers() {
+				fmt.Printf("  #%d %s (%d)\n", c.Rank, c.GetUser().GetNickname(), c.Score)
+			}
 
 		case events.EventLiveEnded:
 			fmt.Println("[control] stream ended")

@@ -178,17 +178,17 @@ message WebcastSocialMessage {
 message WebcastRoomUserSeqMessage {
   Common common = 1;
   repeated Contributor ranks_list = 2;
-  int64 total = 3;
+  int64 viewer_count = 3;  // viewers in the room right now
   string pop_str = 4;
   repeated Contributor seats_list = 5;
   int64 popularity = 6;
-  int32 total_user = 7;
+  int32 total_user = 7;    // unique viewers over the whole stream
   int64 anonymous = 8;
 
   message Contributor {
-    int32 score = 1;
+    int64 score = 1;
     User user = 2;
-    int32 rank = 3;
+    int64 rank = 3;
     int64 delta = 4;
   }
 }
