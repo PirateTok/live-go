@@ -151,14 +151,14 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 	eventCh := make(chan events.Event, 256)
 	eventCh <- events.Event{Type: events.EventConnected, RoomID: room.RoomID}
 
-	go func() {
-		defer close(eventCh)
-		c.reconnectLoop(ctx, room.RoomID, tz, lang, reg, acceptLang, eventCh)
-		select {
-		case eventCh <- events.Event{Type: events.EventDisconnected}:
-		default:
-		}
-	}()
+	deps := loopDeps{
+		fresh: c.freshSession,
+		run: func(ctx context.Context, s *session) sessionExit {
+			return c.runSession(ctx, s, room.RoomID, tz, lang, reg, acceptLang, eventCh)
+		},
+		sleep: sleepCtx,
+	}
+	go supervise(ctx, room.RoomID, c.maxRetries, deps, eventCh)
 
 	return eventCh, nil
 }
@@ -167,56 +167,6 @@ func (c *Client) Connect(ctx context.Context) (<-chan events.Event, error) {
 type session struct {
 	ttwid string
 	ua    string
-}
-
-// reconnectLoop fetches ttwid once and reuses it; it rotates ttwid + UA only
-// on DEVICE_BLOCKED, a ttwid failure, or a connection that died young.
-func (c *Client) reconnectLoop(ctx context.Context, roomID, tz, lang, reg, acceptLang string, eventCh chan events.Event) {
-	budget := reconnectBudget{maxRetries: c.maxRetries}
-	var held *session
-	for ctx.Err() == nil {
-		var exit sessionExit
-		var lived time.Duration
-		if held == nil {
-			held = c.freshSession()
-		}
-		if held == nil {
-			exit = exitNoTTWID
-		} else {
-			started := time.Now()
-			exit = c.runSession(ctx, held, roomID, tz, lang, reg, acceptLang, eventCh)
-			lived = time.Since(started)
-		}
-		if ctx.Err() != nil {
-			return
-		}
-
-		j := judge(exit, lived)
-		if j.rotate {
-			held = nil
-		}
-		attempt, delay, giveUp := budget.record(j.end)
-		if giveUp {
-			log.Printf("max retries (%d) exceeded at attempt %d", c.maxRetries, attempt)
-			return
-		}
-
-		select {
-		case eventCh <- events.Event{
-			Type:   events.EventReconnecting,
-			RoomID: roomID,
-			Data:   fmt.Sprintf("attempt=%d max=%d delay=%v", attempt, c.maxRetries, delay),
-		}:
-		default:
-		}
-		log.Printf("reconnecting in %v (attempt %d/%d)", delay, attempt, c.maxRetries)
-
-		select {
-		case <-time.After(delay):
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 // freshSession picks a UA and fetches a ttwid; nil means the fetch failed.

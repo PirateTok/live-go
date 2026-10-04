@@ -3,13 +3,11 @@ package connection
 import (
 	"bufio"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -74,13 +72,18 @@ func RunWebSocket(ctx context.Context, wssURL string, cookieHeader string, userA
 		},
 	}
 
-	// If an explicit proxy is set, use HTTP CONNECT tunneling via NetDial.
-	if proxy != "" {
-		proxyURL, err := url.Parse(proxy)
+	// Explicit proxy, else HTTPS_PROXY / ALL_PROXY from the environment:
+	// HTTP CONNECT for http(s)://, SOCKS5 handshake for socks5(h)://.
+	proxyURL, err := resolveProxy(proxy, wssURL)
+	if err != nil {
+		return fmt.Errorf("wss proxy: %w", err)
+	}
+	if proxyURL != nil {
+		netDial, err := proxyNetDial(proxyURL)
 		if err != nil {
-			return fmt.Errorf("wss proxy: invalid URL: %w", err)
+			return fmt.Errorf("wss proxy: %w", err)
 		}
-		dialer.NetDial = proxyNetDial(proxyURL)
+		dialer.NetDial = netDial
 	}
 
 	conn, br, _, err := dialer.Dial(ctx, wssURL)
@@ -220,58 +223,3 @@ func processFrame(data []byte, conn net.Conn, eventCh chan<- events.Event) error
 	return nil
 }
 
-// proxyNetDial returns a NetDial function that tunnels through an HTTP CONNECT proxy.
-// The returned connection is a raw TCP socket after the proxy responds with 200.
-func proxyNetDial(proxyURL *url.URL) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		proxyHost := proxyURL.Host
-		if !strings.Contains(proxyHost, ":") {
-			switch proxyURL.Scheme {
-			case "https":
-				proxyHost += ":443"
-			default:
-				proxyHost += ":80"
-			}
-		}
-
-		d := net.Dialer{}
-		proxyConn, err := d.DialContext(ctx, "tcp", proxyHost)
-		if err != nil {
-			return nil, fmt.Errorf("proxy dial %s: %w", proxyHost, err)
-		}
-
-		connectReq := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
-		if proxyURL.User != nil {
-			connectReq += fmt.Sprintf("Proxy-Authorization: Basic %s\r\n",
-				basicAuth(proxyURL.User))
-		}
-		connectReq += "\r\n"
-
-		if _, err := proxyConn.Write([]byte(connectReq)); err != nil {
-			proxyConn.Close()
-			return nil, fmt.Errorf("proxy CONNECT write: %w", err)
-		}
-
-		br := bufio.NewReader(proxyConn)
-		resp, err := http.ReadResponse(br, nil)
-		if err != nil {
-			proxyConn.Close()
-			return nil, fmt.Errorf("proxy CONNECT response: %w", err)
-		}
-		resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			proxyConn.Close()
-			return nil, fmt.Errorf("proxy CONNECT failed: HTTP %d", resp.StatusCode)
-		}
-
-		return proxyConn, nil
-	}
-}
-
-// basicAuth encodes proxy credentials as base64 for Proxy-Authorization.
-func basicAuth(user *url.Userinfo) string {
-	username := user.Username()
-	password, _ := user.Password()
-	return base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
-}
