@@ -42,7 +42,7 @@ func (t *GiftStreakTracker) Process(msg *proto.WebcastGiftMessage) GiftStreakEve
 		diamondPer = msg.Gift.DiamondCount
 	}
 
-	isCombo := msg.Gift != nil && msg.Gift.Type == 1
+	isCombo := msg.IsComboGift()
 	isFinal := msg.RepeatEnd == 1
 
 	if !isCombo {

@@ -11,5 +11,6 @@
 - `RoomIDResult.AnchorID` (streamer user ID from `/api-live/user/room`); `RoomInfo.RawJSON`.
 - `WebcastRoomUserSeqMessage.Total` renamed to `ViewerCount` (live-go#1: it is the current viewer count, tag 3;
   `TotalUser` is unique viewers over the stream). `Contributor.Score`/`Rank` are now `int64`. New `TopViewers()`.
+- Gift helpers on `WebcastGiftMessage`: `IsComboGift()`, `IsStreakOver()`, `DiamondTotal()`.
 - `FetchRoomAudience` (full viewer roster, login-gated) + `SessionRequiredError`; `cmd/audience` example.
 - Replay tests fail on missing testdata instead of skipping, and pin RoomUserSeq viewer counts.
